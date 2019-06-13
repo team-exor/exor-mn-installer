@@ -7,7 +7,7 @@
 #
 # Tested to be working on Ubuntu 16.04 x64 with Vultr and Lunanode VPS
 # Please report other working instances to:
-#	Telegram: @joeuhren on https://t.me/Exorofficial
+#	Telegram: @joeuhren on https://t.me/ExorOfficialSupport
 #	or
 #	Discord: @Joe [Team Exor]#5573 on https://discord.gg/dSuGm3y
 # A special thank you to @marsmensch for releasing the NODEMASTER script which helped immensely for integrating IPv6 support

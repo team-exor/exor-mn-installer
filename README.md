@@ -6,7 +6,7 @@
 
 A custom masternode install script made from scratch specifically for installing Exor masternodes.
 
-Currently, it must be run on Ubuntu Linux 16.04 and has been tested to work using VPS systems from vultr.com and lunanode.com only but should be generic enough to run anywhere (Please let @joeuhren know your experience on https://t.me/Exorofficial or @Joe [Team Exor]#5573 on https://discord.gg/dSuGm3y if you have tried with another VPS provider).
+Currently, it must be run on Ubuntu Linux 16.04 and has been tested to work using VPS systems from vultr.com and lunanode.com only but should be generic enough to run anywhere (Please let @joeuhren know your experience on https://t.me/ExorOfficialSupport or @Joe [Team Exor]#5573 on https://discord.gg/dSuGm3y if you have tried with another VPS provider).
 
 Since this script has the potential to install "extra" software components such as a firewall and/or create a swap disk file, root privileges are required to install properly. Therefore, you must either run the script using the `sudo` command prefix or else run directly as the root user (generally not recommended for security reasons but still supported).
 
