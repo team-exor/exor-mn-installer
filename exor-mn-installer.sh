@@ -662,6 +662,9 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 	if [ "$NET_TYPE" -eq 6 ]; then
 		# Setup IPv6 support before validating ip address
 		init_ipv6
+	else
+		# Initialize network variables
+		init_network
 	fi
 
 	if [ -n "$WAN_IP" ] && (([ "$NET_TYPE" -eq 4 ] && [ -n "$(validate_ip4address $WAN_IP)" ]) || ([ "$NET_TYPE" -eq 6 ] && [ -n "$(validate_ip6address $WAN_IP)" ])); then
