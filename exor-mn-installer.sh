@@ -198,13 +198,13 @@ validate_install_num() {
 
 check_stop_wallet() {
 	# Check if the wallet is currently running
-	if [ -f "${HOME_DIR}/${1}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${1}/${WALLET_PREFIX}d")" ]; then
+	if [ -f "${HOME_DIR}/${1}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${1}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then
 		# Wallet is running. Issue stop command
 		${HOME_DIR}/${1}/${WALLET_PREFIX}-cli -datadir=${HOME}/${2} stop >/dev/null 2>&1
 		# Wait for wallet to close		
 		PERIOD=".  "
 
-		while [ -f "${HOME_DIR}/${1}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${1}/${WALLET_PREFIX}d")" ]
+		while [ -f "${HOME_DIR}/${1}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${1}/${WALLET_PREFIX}d" 2> /dev/null)" ]
 		do
 			sleep 1 &
 			printf "\rWaiting for wallet to close%s" "${PERIOD}"
@@ -1112,7 +1112,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 	fi
 
 	# Check if wallet is currently running and stop it if running
-	if [ -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d")" ]; then
+	if [ -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then
 		# Wallet is running. Issue stop command
 		echo "${CYAN}#####${NONE} Close wallet ${CYAN}#####${NONE}"
 		echo && check_stop_wallet "${WALLET_INSTALL_DIR}" "${DATA_INSTALL_DIR}" && echo
@@ -1268,7 +1268,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 				NEED_RESTART=0
 
 				# Check if the other wallet is currently running and stop it if running
-				if [ -f "${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}d")" ]; then
+				if [ -f "${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then
 					# Wallet is running. Issue stop command
 					echo "Temporarily closing wallet #${i}"
 					check_stop_wallet "${WALLET_DIR_TEST}" "${DATA_DIR_TEST}"
