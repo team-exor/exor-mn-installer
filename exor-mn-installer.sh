@@ -240,7 +240,7 @@ init_network() {
 
 	# Check interface status
 	if [ "${ETH_STATUS}" = "down" ] || [ "${ETH_STATUS}" = "" ]; then
-		echo && error_message "Cannot use IPv6. Default interface is down"
+		echo && error_message "Cannot find the default network interface or it is disabled"
 	fi
 }
 
