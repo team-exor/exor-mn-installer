@@ -100,11 +100,9 @@ To save time on 2+ installs, the wallet binaries are archived in the wallet dire
 
 ## Recomended Installation Instructions
 
-To begin, you must first download the initial script and give it execute permission with the following 2 commands:
+To begin, you must first download the initial script and give it execute permission with the following command:
 
 `wget https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/exor-mn-installer.sh`
-
-`sudo chmod +x exor-mn-installer.sh`
 
 #### Install 1st/default wallet using IPv6:
 
