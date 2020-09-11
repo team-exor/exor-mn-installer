@@ -100,7 +100,7 @@ To save time on 2+ installs, the wallet binaries are archived in the wallet dire
 
 ## Recomended Installation Instructions
 
-To begin, you must first download the initial script and give it execute permission with the following command:
+To begin, you must first download the initial script with the following command:
 
 `wget https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/exor-mn-installer.sh`
 
