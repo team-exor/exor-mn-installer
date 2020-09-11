@@ -1453,8 +1453,11 @@ else
         *) exit ;;
     esac
 	
-	# Check if wallet is currently running and stop it if running	
-	echo && check_stop_wallet "${WALLET_INSTALL_DIR}" "${DATA_INSTALL_DIR}"
+	# Check if the wallet is currently running
+	if [ -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then
+		# Stop the running wallet
+		echo && check_stop_wallet "${WALLET_INSTALL_DIR}" "${DATA_INSTALL_DIR}"
+	fi
 
 	# Check if the wallet created an IPv4 address
 	if [ -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME}" ]; then
