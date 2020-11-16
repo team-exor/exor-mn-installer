@@ -273,6 +273,26 @@ exor-cli5 -datadir=$HOME/.exor5 getmasternodestatus
 sudo sh exor-mn-installer.sh -S
 ```
 
+#### Sample cron job to shut down all running wallets and reboot once a month:
+
+1st allow reboot cmd to be run without root permissions:
+
+```
+sudo chmod u+s /sbin/reboot
+```
+
+Then add the following to a crontab:
+
+```
+0 0 1 * * sh exor-mn-installer.sh -S && reboot
+```
+
+Alternate syntax in case you need to provide the full path to the reboot cmd:
+
+```
+0 0 1 * * sh exor-mn-installer.sh -S && /sbin/reboot
+```
+
 ## Donate
 
 ```
