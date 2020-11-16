@@ -1259,8 +1259,8 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 			case $i in
 				1) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}"
 				   DATA_DIR_TEST="${DEFAULT_DATA_DIR}" ;;
-				*) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}{i}"
-				   DATA_DIR_TEST="${DEFAULT_DATA_DIR}{i}" ;;
+				*) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}${i}"
+				   DATA_DIR_TEST="${DEFAULT_DATA_DIR}${i}" ;;
 			esac
 			
 			if [ -d "${HOME}/${DATA_DIR_TEST}" ] && [ "${DATA_DIR_TEST}" != "${DATA_INSTALL_DIR}" ]; then
