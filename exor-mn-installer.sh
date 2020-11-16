@@ -444,7 +444,7 @@ stop_all() {
 					echo
 				fi
 				# Issue stop command
-				echo "${CYAN}#####${NONE} Closing wallet ${i} ${CYAN}#####${NONE}"
+				echo "${CYAN}#####${NONE} Closing wallet #${i} ${CYAN}#####${NONE}"
 				echo && check_stop_wallet "${WALLET_DIR_TEST}" "${DATA_DIR_TEST}" && echo
 				# Keep track of wallet being closed
 				WALLET_CLOSED=1
