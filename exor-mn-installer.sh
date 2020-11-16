@@ -434,7 +434,7 @@ stop_all() {
 			   DATA_DIR_TEST="${DEFAULT_DATA_DIR}${i}" ;;
 		esac
 
-		if [ -d "${HOME_DIR}/${DIR_TEST}" ]; then
+		if [ -d "${HOME_DIR}/${WALLET_DIR_TEST}" ]; then
 			# Found an installed wallet
 			# Check if the wallet is currently running and stop it if running
 			if [ -f "${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then
