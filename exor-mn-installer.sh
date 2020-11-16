@@ -129,6 +129,9 @@ help_menu() {
 	echo "  -c, --nochainsync"
 	echo "            skip waiting for the blockchain to sync after installation"
 	echo "            default is to wait for the blockchain to fully sync before exiting"
+	echo "  -S, --stopall"
+	echo "            shutdown all wallets controlled by this script and wait for all to"
+	echo "            finish shutting down before continuing"
 }
 
 begins_with() { case $2 in "$1"*) true;; *) false;; esac; }
@@ -421,6 +424,46 @@ removeWalletLinks() {
 	fi
 }
 
+stop_all() {
+	WALLET_CLOSED=0
+	# Check for installed wallets
+	i=1; while [ $i -le 99 ]; do
+		case $i in
+			1) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}"
+			   DATA_DIR_TEST="${DEFAULT_DATA_DIR}" ;;
+			*) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}${i}"
+			   DATA_DIR_TEST="${DEFAULT_DATA_DIR}${i}" ;;
+		esac
+
+		if [ -d "${HOME_DIR}/${DIR_TEST}" ]; then
+			# Found an installed wallet
+			# Check if the wallet is currently running and stop it if running
+			if [ -f "${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then
+				# Wallet is running
+				# Add space if a wallet was already closed
+				if [ $WALLET_CLOSED -eq 0 ]; then
+					echo
+				fi
+				# Issue stop command
+				echo "${CYAN}#####${NONE} Closing wallet ${i} ${CYAN}#####${NONE}"
+				echo && check_stop_wallet "${WALLET_DIR_TEST}" "${DATA_DIR_TEST}" && echo
+				# Keep track of wallet being closed
+				WALLET_CLOSED=1
+			fi
+		fi
+		
+		i=$(( i + 1 ))
+	done
+	
+	# Check if any wallets were closed
+	if [ $WALLET_CLOSED -eq 1 ]; then
+		echo "${GREEN}#####${NONE} All wallets have been shut down ${GREEN}#####${NONE}"
+	else
+		echo && echo "${GREEN}#####${NONE} No wallets are currently running ${GREEN}#####${NONE}"
+	fi
+	echo
+}
+
 # Verify that user has root
 if [ "$(whoami)" != "root" ]; then
 	echo && error_message "${ORANGE}Root${NONE} privileges not detected. This script must be run using the keyword '${CYAN}sudo${NONE}' to enable ${ORANGE}root${NONE} user"
@@ -441,7 +484,7 @@ if ! contains "16.04" "$LINUX_VERSION"; then
 fi
 
 # Read command line arguments
-if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:sfbc" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,noswap,nofirewall,nobruteprotect,nochainsync" -n "${0##*/}" -- "$@"); then
+if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:sfbcS" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,noswap,nofirewall,nobruteprotect,nochainsync,stopall" -n "${0##*/}" -- "$@"); then
 	# invalid command line arguments so show help menu
 	help_menu
 	exit;
@@ -527,6 +570,11 @@ while true; do
         -c|--nochainsync)
             shift;
             SYNCCHAIN="0";
+            ;;
+        -S|--stopall)
+            shift;
+            stop_all;
+			exit
             ;;
         --)
             shift;

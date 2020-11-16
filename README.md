@@ -97,6 +97,11 @@ To save time on 2+ installs, the wallet binaries are archived in the wallet dire
      Skip waiting for the blockchain to sync after installation. Default is to wait for the blockchain to fully sync before exiting. Only works when the block explorer web address can be reached
      
      Usage Example: `sudo sh exor-mn-installer.sh -c`
+- -S or --stopall
+
+     Shutdown all wallets controlled by this script and wait for all to finish shutting down before continuing
+     
+     Usage Example: `sudo sh exor-mn-installer.sh -S`
 
 ## Recomended Installation Instructions
 
@@ -260,6 +265,12 @@ exor-cli2 -datadir=$HOME/.exor2 getmasternodestatus
 exor-cli3 -datadir=$HOME/.exor3 getmasternodestatus
 exor-cli4 -datadir=$HOME/.exor4 getmasternodestatus
 exor-cli5 -datadir=$HOME/.exor5 getmasternodestatus
+```
+
+#### Shut down all running wallets:
+
+```
+sudo sh exor-mn-installer.sh -S
 ```
 
 ## Donate
