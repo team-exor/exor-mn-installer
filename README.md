@@ -97,6 +97,17 @@ To save time on 2+ installs, the wallet binaries are archived in the wallet dire
      Skip waiting for the blockchain to sync after installation. Default is to wait for the blockchain to fully sync before exiting. Only works when the block explorer web address can be reached
      
      Usage Example: `sudo sh exor-mn-installer.sh -c`
+- -u or --noosupgrade
+
+     Skip applying operating system updates/upgrades before installation. Default is to run the following before doing an install:
+     
+     ```
+     apt-get update
+     apt-get upgrade
+     apt-get dist-upgrade
+     ```
+     
+     Usage Example: `sudo sh exor-mn-installer.sh -u`
 - -S or --stopall
 
      Shutdown all wallets controlled by this script and wait for all to finish shutting down before continuing

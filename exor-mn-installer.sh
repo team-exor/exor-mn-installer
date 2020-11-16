@@ -59,6 +59,7 @@ SWAP=1
 FIREWALL=1
 FAIL2BAN=1
 SYNCCHAIN=1
+OSUPGRADE=1
 WAIT_TIMEOUT=5
 DATA_INSTALL_DIR=""
 WALLET_INSTALL_DIR=""
@@ -128,6 +129,12 @@ help_menu() {
 	echo "  -c, --nochainsync"
 	echo "            skip waiting for the blockchain to sync after installation"
 	echo "            default is to wait for the blockchain to fully sync before exiting"
+	echo "  -u, --noosupgrade"
+	echo "            skip applying operating system updates/upgrades before installation"
+	echo "            default is to run the following before doing an install:"
+	echo "            apt-get update"
+	echo "            apt-get upgrade"
+	echo "            apt-get dist-upgrade"
 	echo "  -S, --stopall"
 	echo "            shutdown all wallets controlled by this script and wait for all to"
 	echo "            finish shutting down before continuing"
@@ -478,7 +485,7 @@ if ! contains "16.04" "$LINUX_VERSION"; then
 fi
 
 # Read command line arguments
-if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:sfbcS" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,noswap,nofirewall,nobruteprotect,nochainsync,stopall" -n "${0##*/}" -- "$@"); then
+if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:sfbcuS" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,noswap,nofirewall,nobruteprotect,nochainsync,noosupgrade,stopall" -n "${0##*/}" -- "$@"); then
 	# invalid command line arguments so show help menu
 	help_menu
 	exit;
@@ -564,6 +571,10 @@ while true; do
         -c|--nochainsync)
             shift;
             SYNCCHAIN="0";
+            ;;
+        -u|--noosupgrade)
+            shift;
+            OSUPGRADE="0";
             ;;
         -S|--stopall)
             shift;
@@ -817,8 +828,13 @@ if [ ${VERSION_LENGTH} -gt 0 ] && [ ${VERSION_LENGTH} -lt 10 ]; then
 				else
 					SYNCCHAIN=""
 				fi
+				if [ "$OSUPGRADE" -eq 0 ]; then
+					OSUPGRADE=" -u"
+				else
+					OSUPGRADE=""
+				fi
 				# Restart the newest version of the script
-				eval "sh ${HOME}/${0##*/} -t ${INSTALL_TYPE} -w ${WALLET_TYPE}${NULLGENKEY} -N ${NET_TYPE}${WAN_IP}${PORT_NUMBER} -n ${INSTALL_NUM}${SWAP}${FIREWALL}${FAIL2BAN}${SYNCCHAIN}"
+				eval "sh ${HOME}/${0##*/} -t ${INSTALL_TYPE} -w ${WALLET_TYPE}${NULLGENKEY} -N ${NET_TYPE}${WAN_IP}${PORT_NUMBER} -n ${INSTALL_NUM}${SWAP}${FIREWALL}${FAIL2BAN}${SYNCCHAIN}${OSUPGRADE}"
 				exit
 				;;
 		esac
@@ -910,6 +926,12 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 		fi
 	fi
 	
+	if [ "$OSUPGRADE" -eq 0 ]; then
+		echo "${CYAN}O/S Upgrade:${NONE}		${ORANGE}No${NONE}"
+	else
+		echo "${CYAN}O/S Upgrade:${NONE}		Yes"
+	fi
+	
 	# Wait for timeout
 	echo
 	while [ $WAIT_TIMEOUT -gt 0 ]
@@ -920,11 +942,17 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 		wait
 	done
 	printf "\r                                      "
-	# Update package lists, repositories and new software versions to keep the vps up-to-date
-	echo && echo "${CYAN}#####${NONE} Updating package lists, repositories and new software versions ${CYAN}#####${NONE}" && echo
-	apt-get update
-	apt-get upgrade -y
-	apt-get dist-upgrade -y && echo
+	
+	if [ "$OSUPGRADE" -eq 1 ]; then
+		# Update package lists, repositories and new software versions to keep the vps up-to-date
+		echo && echo "${CYAN}#####${NONE} Updating package lists, repositories and new software versions ${CYAN}#####${NONE}" && echo
+		apt-get update
+		apt-get upgrade -y
+		apt-get dist-upgrade -y
+	fi
+	
+	# Add a blank line
+	echo
 	
 	if [ "$SWAP" -eq 1 ]; then
 		# Install and configure disk swap file
