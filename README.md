@@ -292,10 +292,3 @@ Alternate syntax in case you need to provide the full path to the reboot cmd:
 ```
 0 0 1 * * sh exor-mn-installer.sh -S && /sbin/reboot
 ```
-
-## Donate
-
-```
-EXOR: EayXcHRy1fKoL52B8ecknGwZ3VD2EKryPD
-BTC: 1NpuD7EiFULUC944RvEd2AMJ6Xj13W1e7g
-```
