@@ -31,7 +31,6 @@ readonly WALLET_FILE_TEMPLATE="\${WALLET_PREFIX}-\${WALLET_VERSION}-x86_64-linux
 readonly WALLET_PREFIX="exor"
 readonly BLOCKCOUNT_URL="https://explorer.exor.io/api/getblockcount"
 readonly RELEASES_URL="https://api.github.com/repos/team-exor/exor/releases"
-readonly REQUIRE_GENERATE_CONF=0
 readonly NONE="\033[00m"
 readonly ORANGE="\033[00;33m"
 readonly RED="\033[01;31m"
@@ -1295,11 +1294,6 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 		if [ ! -d "${HOME}/${DATA_INSTALL_DIR}" ]; then
 			# Manually create the data directory
 			execute_command "mkdir ${HOME}/${DATA_INSTALL_DIR}"
-		fi
-
-		if [ "${REQUIRE_GENERATE_CONF}" -eq 1 ]; then
-			# Generate new data files for this install
-			execute_command "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d -datadir=${HOME}/${DATA_INSTALL_DIR} >/dev/null 2>&1"
 		fi
 
 		# Check if there is another install that can be copied over to save time on re-syncing the blockchain
