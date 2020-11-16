@@ -463,11 +463,6 @@ stop_all() {
 	echo
 }
 
-# Verify that user has root
-if [ "$(whoami)" != "root" ]; then
-	echo && error_message "${ORANGE}Root${NONE} privileges not detected. This script must be run using the keyword '${CYAN}sudo${NONE}' to enable ${ORANGE}root${NONE} user"
-fi
-
 # Check linux version
 LINUX_VERSION=$(cat /etc/issue.net)
 if ! contains "16.04" "$LINUX_VERSION"; then
@@ -581,6 +576,11 @@ while true; do
             ;;
     esac
 done
+
+# Verify that user has root
+if [ "$(whoami)" != "root" ]; then
+	echo && error_message "${ORANGE}Root${NONE} privileges not detected. This script must be run using the keyword '${CYAN}sudo${NONE}' to enable ${ORANGE}root${NONE} user"
+fi
 
 # Ensure commands are executed from the users home directory
 eval "cd ${HOME}"
