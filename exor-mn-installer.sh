@@ -1315,6 +1315,9 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 		# Save a copy of the downloaded wallet into the current install directory
 		mv "${WALLET_BASE_DIR}/${WALLET_FILE}" "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_FILE}"
 	fi
+	
+	# Do not copy the blockchain from another installed wallet by default
+	COPY_BLOCKCHAIN=0
 
 	# Check if the config file already exists (if yes, this is most likely an upgrade install)
 	if [ ! -f ${HOME}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} ]; then
@@ -1323,8 +1326,33 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 			# Manually create the data directory
 			execute_command "mkdir ${HOME}/${DATA_INSTALL_DIR}"
 		fi
+		# Attempt to copy the blockchain from another installed wallet near the end of the install
+		COPY_BLOCKCHAIN=1
+	fi
 
-		# Check if there is another install that can be copied over to save time on re-syncing the blockchain
+	# Overwrite configuration file settings
+	write_config
+	
+	# If there is no genkey value then generate it from the current wallet
+	if [ -z "$NULLGENKEY" ]; then
+		# Start wallet
+		echo "Temporarily starting new wallet"
+		execute_command "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d -datadir=${HOME}/${DATA_INSTALL_DIR}"
+		# Wait for wallet to load
+		wait_wallet_loaded
+		# Get the genkey value
+		NULLGENKEY=$("${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli" -datadir="${HOME}/${DATA_INSTALL_DIR}" masternode genkey) >/dev/null 2>&1
+		GENERATE_GENKEY=1
+		echo && printf "Generated new genkey value: ${NULLGENKEY}"
+		# Stop the wallet
+		echo && check_stop_wallet "${WALLET_INSTALL_DIR}" "${DATA_INSTALL_DIR}"
+		# Overwrite configuration file settings (now with the proper genkey value)
+		write_config
+	fi
+	
+	# Check if another wallets blockchain should be copied to this installation
+	if [ "$COPY_BLOCKCHAIN" -eq 1 ]; then
+		# Determine if there is another install that can be copied over to save time on re-syncing the blockchain
 		i=1; while [ $i -le 99 ]; do
 			case $i in
 				1) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}"
@@ -1368,26 +1396,6 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 			i=$(( i + 1 ))
 		done
 	fi
-
-	# Overwrite configuration file settings
-	write_config
-	
-	# If there is no genkey value then generate it from the current wallet
-	if [ -z "$NULLGENKEY" ]; then
-		# Start wallet
-		echo "Temporarily starting new wallet"
-		execute_command "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d -datadir=${HOME}/${DATA_INSTALL_DIR}"
-		# Wait for wallet to load
-		wait_wallet_loaded
-		# Get the genkey value
-		NULLGENKEY=$("${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli" -datadir="${HOME}/${DATA_INSTALL_DIR}" masternode genkey) >/dev/null 2>&1
-		GENERATE_GENKEY=1
-		echo && printf "Generated new genkey value: ${NULLGENKEY}"
-		# Stop the wallet
-		echo && check_stop_wallet "${WALLET_INSTALL_DIR}" "${DATA_INSTALL_DIR}"
-		# Overwrite configuration file settings (now with the proper genkey value)
-		write_config
-	fi	
 	
 	# Wallet setup complete
 	echo "Wallet setup complete" && echo
