@@ -66,7 +66,6 @@ WALLET_INSTALL_DIR=""
 ETH_INTERFACE="ens3"
 WRITE_IP4_CONF=0
 WRITE_IP6_CONF=0
-GENERATE_GENKEY=0
 ARCHIVE_DIR=""
 
 # Functions
@@ -1324,7 +1323,6 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 		wait_wallet_loaded
 		# Get the genkey value
 		NULLGENKEY=$("${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli" -datadir="${HOME}/${DATA_INSTALL_DIR}" masternode genkey) >/dev/null 2>&1
-		GENERATE_GENKEY=1
 		echo && printf "Generated new genkey value: ${NULLGENKEY}"
 		# Stop the wallet
 		echo && check_stop_wallet "${WALLET_INSTALL_DIR}" "${DATA_INSTALL_DIR}"
