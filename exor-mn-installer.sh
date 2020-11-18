@@ -755,9 +755,15 @@ i=1; while [ "$i" -le "$(((55-$(printf "%s" "${TITLE_STRING}" | wc -m))/2))" ]; 
 done
 echo -n "${TITLE_STRING}"
 echo && echo "${GREY}///////////////////////////////////////////////////////${NONE}"
-# Check for an updated version of the script
+# Wait 2 seconds with the splash screen up before starting
 sleep 2 && echo
-echo && echo "${CYAN}#####${NONE} Check for script update ${CYAN}#####${NONE}" && echo
+# Check if curl is installed
+if [ "$({ dpkg-query --show --showformat='${db:Status-Status}\n' 'curl'; })" = "not-installed" ]; then
+	# Install curl
+	install_package "curl" "curl (required for script usage)"
+fi
+# Check for an updated version of the script
+echo "${CYAN}#####${NONE} Check for script update ${CYAN}#####${NONE}" && echo
 NEWEST_VERSION=$(curl -s -k "${VERSION_URL}?$(date +%s)")
 VERSION_LENGTH=$(printf "%s" "${NEWEST_VERSION}" | wc -m)
 
