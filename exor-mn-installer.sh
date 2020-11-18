@@ -1111,40 +1111,20 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 				INSTALL_DEPENDENCIES=1
 				BUILD_SOURCE=1
 			fi
-			
+
 			if [ "${INSTALL_DEPENDENCIES}" -eq 1 ]; then
 				# Install wallet source and all dependencies
-				# Add the ppa:bitcoin/bitcoin repository
-				echo "${CYAN}#####${NONE} Add ppa:bitcoin/bitcoin repository ${CYAN}#####${NONE}" && echo
-				add-apt-repository ppa:bitcoin/bitcoin -y && echo
-				
-				# Check to ensure the package was installed
-				if [ -z "$({ grep ^ /etc/apt/sources.list /etc/apt/sources.list.d/* | grep bitcoin/bitcoin; })" ]; then
-					echo && error_message "Failed to add the ppa:bitcoin/bitcoin repository"
-				else
-					# Update package lists and repositories
-					echo "${CYAN}#####${NONE} Updating package lists and repositories ${CYAN}#####${NONE}" && echo
-					apt-get update && echo
-				fi
-
-				# Install wallet dependencies
+				# Update package lists and repositories
+				echo "${CYAN}#####${NONE} Updating package lists and repositories ${CYAN}#####${NONE}" && echo
+				apt-get update && echo
+				# Install build dependencies
 				install_package "automake" "automake"
 				install_package "build-essential" "build-essential"
 				install_package "libtool" "libtool"
 				install_package "autotools-dev" "autotools-dev"
-				install_package "autoconf" "autoconf"
-				install_package "pkg-config" "pkg-config"
-				install_package "libssl-dev" "libssl-dev"
-				install_package "libevent-dev" "libevent-dev"
-				install_package "software-properties-common" "software-properties-common"
-				install_package "libboost-all-dev" "libboost-all-dev"
-				install_package "libdb-dev" "libdb-dev"
-				install_package "libdb++-dev" "libdb++-dev"
-				install_package "libqrencode-dev" "libqrencode-dev"
-				install_package "aptitude" "aptitude"
-				install_package "libdb4.8-dev" "libdb4.8-dev"
-				install_package "libdb4.8++-dev" "libdb4.8++-dev"
 				install_package "git" "git"
+				install_package "curl" "curl"
+				install_package "pkg-config" "pkg-config"
 			fi
 
 			if [ "${BUILD_SOURCE}" -eq 1 ]; then
@@ -1156,16 +1136,18 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 					echo "${CYAN}#####${NONE} Downloading source code ${CYAN}#####${NONE}" && echo
 					eval "git clone ${SOURCE_URL} ${SOURCE_DIR}"
 				fi
-				# Change directory into new repo
-				eval "cd ${SOURCE_DIR}"
-				# Build wallet from source code
+				# Change directory into "depends" directory of new repo
+				eval "cd ${SOURCE_DIR}/depends"
+				# Build the dependencies for 64-bit linux systems
 				echo && echo "${CYAN}#####${NONE} Start build from source code ${CYAN}#####${NONE}" && echo
+				eval "make HOST=x86_64-linux-gnu NO_QT=1"
+				# Change directory into root of new repo
+				eval "cd .."
+				# Build wallet from source code
 				eval "./autogen.sh"
-				eval "./configure --without-gui"
+				eval "./configure --prefix=${HOME}/${SOURCE_DIR}/depends/x86_64-linux-gnu --without-gui --enable-glibc-back-compat --enable-reduce-exports --disable-bench --disable-gui-tests --disable-tests"
 			fi
 
-			# Checkout a specific version
-			eval "git checkout ${WALLET_VERSION}"
 			# Make the files
 			eval "make"
 			echo && echo "${CYAN}#####${NONE} Finalizing build ${CYAN}#####${NONE}" && echo
