@@ -35,6 +35,62 @@ To save time on 2+ installs, the wallet binaries are archived in the wallet dire
 - Properly shutdown all wallets automatically when a reboot or shutdown command is issued to prevent blockchain corruption
 - Automatically remove firewall rules for port(s) that pertain to a specific wallet install when the wallet is uninstalled
 
+## Recomended Installation Instructions
+
+To begin, you must first download the initial script and give it execute permission with the following 2 commands:
+
+`wget https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/exor-mn-installer.sh`
+
+`sudo chmod +x exor-mn-installer.sh`
+
+#### Install 1st/default wallet using IPv6:
+
+```
+sudo sh exor-mn-installer.sh
+```
+
+#### Install 1st/default wallet using the default IPv4 address:
+
+```
+sudo sh exor-mn-installer.sh -N 4
+```
+
+#### Install 2nd wallet using IPv6 (not required, but also skip the disk swap file setup and brute-force protection setup since those only need to be installed once):
+
+```
+sudo sh exor-mn-installer.sh -n 2 -s -b
+```
+
+#### Install 2nd wallet using IPv4 (a 2nd ip address needs to be specified if you have purchased more than 1 IPv4 ip address) (not required, but also skip the disk swap file setup and brute-force protection setup since those only need to be installed once):
+
+```
+sudo sh exor-mn-installer.sh -n 2 -N 4 -i 45.32.168.34 -s -b
+```
+
+**NOTE:** Installing the 3rd, 4th, 5th, etc wallets are identical to the 2nd wallet except that you would change the -n value to 3, 4, 5, etc
+
+```
+sudo sh exor-mn-installer.sh -n 3 -s -b
+sudo sh exor-mn-installer.sh -n 4 -s -b
+sudo sh exor-mn-installer.sh -n 5 -s -b
+```
+
+**NOTE:** If you are installing multiple wallets, they do not need to be installed in any specific order although it is generally easier to install in numerical sequence (install 1 then 2 then 3, etc).
+
+## Update Instructions
+
+At any point after the initial installation you can "refresh" a particular wallet install by re-running the following command:
+
+`sudo sh exor-mn-installer.sh`
+
+This will "remember" all of your previously installed settings and allow you to update the installed wallet to the latest version (assuming a new version has been released since the last update/install).
+
+If you would like to keep your wallet installed but just change one of the options, such as ip address type, you could update install using something like this:
+
+`sudo sh exor-mn-installer.sh -N 4`
+
+This would allow you to change an IPv6 installed wallet into an IPv4 wallet. **NOTE:** Changing options like this will most likely require you to reconfigure your cold wallet exor.conf and masternode.conf files. The 'Final setup instructions' are always displayed at the end of an update install the same way as they are for the initial install.
+
 ## Available Command-Line Options
 
 - -h or --help
@@ -113,62 +169,6 @@ To save time on 2+ installs, the wallet binaries are archived in the wallet dire
      Shutdown all wallets controlled by this script and wait for all to finish shutting down before continuing
      
      Usage Example: `sudo sh exor-mn-installer.sh -S`
-
-## Recomended Installation Instructions
-
-To begin, you must first download the initial script and give it execute permission with the following 2 commands:
-
-`wget https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/exor-mn-installer.sh`
-
-`sudo chmod +x exor-mn-installer.sh`
-
-#### Install 1st/default wallet using IPv6:
-
-```
-sudo sh exor-mn-installer.sh
-```
-
-#### Install 1st/default wallet using the default IPv4 address:
-
-```
-sudo sh exor-mn-installer.sh -N 4
-```
-
-#### Install 2nd wallet using IPv6 (not required, but also skip the disk swap file setup and brute-force protection setup since those only need to be installed once):
-
-```
-sudo sh exor-mn-installer.sh -n 2 -s -b
-```
-
-#### Install 2nd wallet using IPv4 (a 2nd ip address needs to be specified if you have purchased more than 1 IPv4 ip address) (not required, but also skip the disk swap file setup and brute-force protection setup since those only need to be installed once):
-
-```
-sudo sh exor-mn-installer.sh -n 2 -N 4 -i 45.32.168.34 -s -b
-```
-
-**NOTE:** Installing the 3rd, 4th, 5th, etc wallets are identical to the 2nd wallet except that you would change the -n value to 3, 4, 5, etc
-
-```
-sudo sh exor-mn-installer.sh -n 3 -s -b
-sudo sh exor-mn-installer.sh -n 4 -s -b
-sudo sh exor-mn-installer.sh -n 5 -s -b
-```
-
-**NOTE:** If you are installing multiple wallets, they do not need to be installed in any specific order although it is generally easier to install in numerical sequence (install 1 then 2 then 3, etc).
-
-## Update Instructions
-
-At any point after the initial installation you can "refresh" a particular wallet install by re-running the following command:
-
-`sudo sh exor-mn-installer.sh`
-
-This will "remember" all of your previously installed settings and allow you to update the installed wallet to the latest version (assuming a new version has been released since the last update/install).
-
-If you would like to keep your wallet installed but just change one of the options, such as ip address type, you could update install using something like this:
-
-`sudo sh exor-mn-installer.sh -N 4`
-
-This would allow you to change an IPv6 installed wallet into an IPv4 wallet. **NOTE:** Changing options like this will most likely require you to reconfigure your cold wallet exor.conf and masternode.conf files. The 'Final setup instructions' are always displayed at the end of an update install the same way as they are for the initial install.
 
 ## Uninstallation Instructions
 
