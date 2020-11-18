@@ -1,1 +1,8 @@
--Initial release
+-Added a new argument to stop all wallets
+-Added a new argument to skip o/s update/upgrade during install
+-Build from source improvements (static linked wallet, removed install of unnecessary dependencies, faster build time)
+-Install required package 'curl' during install if not present
+-Speed improvements to the wallet installation routine
+-Fix copy blockchain from other wallet when wallet #1 is not installed
+-Fix missing network initialization for IPv4 nodes
+-Suppress lsof errors on some systems
