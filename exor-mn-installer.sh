@@ -41,7 +41,7 @@ readonly PURPLE="\033[01;35m"
 readonly ULINE="\033[4m"
 readonly RC_LOCAL="/etc/rc.local"
 readonly NETWORK_BASE_TAG="5123"
-readonly CURRENT_USER="$({ who am i | awk '{print $1}'; })"
+readonly CURRENT_USER="$(whoami)"
 readonly HOME_DIR="/usr/local/bin"
 readonly VERSION_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/VERSION"
 readonly SCRIPT_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/exor-mn-installer.sh"
@@ -588,7 +588,7 @@ while true; do
 done
 
 # Verify that user has root
-if [ "$(whoami)" != "root" ]; then
+if [ "${CURRENT_USER}" != "root" ]; then
 	echo && error_message "${ORANGE}Root${NONE} privileges not detected. This script must be run using the keyword '${CYAN}sudo${NONE}' to enable ${ORANGE}root${NONE} user"
 fi
 
