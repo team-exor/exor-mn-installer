@@ -63,7 +63,7 @@ OSUPGRADE=1
 WAIT_TIMEOUT=5
 DATA_INSTALL_DIR=""
 WALLET_INSTALL_DIR=""
-ETH_INTERFACE="ens3"
+NET_INTERFACE=""
 WRITE_IP4_CONF=0
 WRITE_IP6_CONF=0
 ARCHIVE_DIR=""
@@ -230,33 +230,62 @@ check_stop_wallet() {
 }
 
 init_network() {
-	# Vultr uses ens3 interface while many other providers use eth0
-	# Check for the default interface status
-	if [ ! -f /sys/class/net/${ETH_INTERFACE}/operstate ]; then
-		# ens3 is not available so try eth0
-		ETH_INTERFACE="eth0"
-	fi
+  # Loop through all known network interfaces
+  for file in /sys/class/net/*; do
+    # Remove the path from the network interface name
+    NET_INTERFACE="$(basename "$file")"
 
-	# If the interface is still not found check enp0s3 as the last resort
-	if [ ! -f /sys/class/net/${ETH_INTERFACE}/operstate ]; then
-		# eth0 is not available so try enp0s3
-		ETH_INTERFACE="enp0s3"
-	fi
+    # Lookup more details about this network interface
+    INTERFACE_DETAIL="$(ip address show $(basename "$file"))"
 
-	# Get the current interface state
-	ETH_STATUS=$(cat /sys/class/net/${ETH_INTERFACE}/operstate)
+    # Interface is invalid until proven to be valid
+    VALID_INTERFACE=0
 
-	# Check interface status
-	if [ "${ETH_STATUS}" = "down" ] || [ "${ETH_STATUS}" = "" ]; then
-		echo && error_message "Cannot find the default network interface or it is disabled"
-	fi
+    # Check if this is an IPv4 or IPv6 install
+    if [ "$NET_TYPE" -eq 6 ]; then
+      # This is an IPv6 install
+      # Check if this is a valid IPv6 network interface
+      if contains " inet6 " "${INTERFACE_DETAIL}" && ! contains " inet6 ::1" "${INTERFACE_DETAIL}"; then
+        # The interface is valid
+        VALID_INTERFACE=1
+      fi
+    else
+      # This is an IPv4 install
+      # Check if this is a valid IPv4 network interface
+      if contains " inet " "${INTERFACE_DETAIL}" && ! contains " inet 127.0.0.1" "${INTERFACE_DETAIL}"; then
+        # The interface is valid
+        VALID_INTERFACE=1
+      fi
+    fi
+
+    # Check if the interface is valid
+    if [ "$VALID_INTERFACE" -eq 1 ]; then
+      # Check if the operstate file exists for this interface
+      if [ -f /sys/class/net/${NET_INTERFACE}/operstate ]; then
+        # Interface operstate file exists
+        # Check the current status
+        if [ "$(cat /sys/class/net/${NET_INTERFACE}/operstate)" = "up" ]; then
+          # This interface is enabled and meets all requirements
+          VALID_INTERFACE=2
+          # Stop checking for a valid network interfaces
+          break
+        fi
+      fi
+    fi
+  done
+
+  # Check if a valid network interface was found
+  if [ "$VALID_INTERFACE" -ne 2 ]; then
+    # No valid network interface found
+    echo && error_message "Cannot find the default network interface or it is disabled"
+  fi
 }
 
 init_ipv6() {
 	# Initialize network variables
 	init_network
 	# Get the base IPv6 address
-	IPV6_INT_BASE="$(ip -6 addr show dev ${ETH_INTERFACE} | grep inet6 | awk -F '[ \t]+|/' '{print $3}' | grep -v ^fe80 | grep -v ^::1 | cut -f1-4 -d':' | head -1)"
+	IPV6_INT_BASE="$(ip -6 addr show dev ${NET_INTERFACE} | grep inet6 | awk -F '[ \t]+|/' '{print $3}' | grep -v ^fe80 | grep -v ^::1 | cut -f1-4 -d':' | head -1)"
 
 	if [ -z "${IPV6_INT_BASE}" ]; then
 		echo && error_message "No IPv6 support found. Did you forget to enable it during installation?"
@@ -412,11 +441,11 @@ online_wallet_check() {
 }
 
 unregisterIP4Address() {
-	ip -4 addr del "${1}/23" dev ${ETH_INTERFACE} >/dev/null 2>&1
+	ip -4 addr del "${1}/23" dev ${NET_INTERFACE} >/dev/null 2>&1
 }
 
 unregisterIP6Address() {
-	ip -6 addr del "${1}/64" dev ${ETH_INTERFACE} >/dev/null 2>&1
+	ip -6 addr del "${1}/64" dev ${NET_INTERFACE} >/dev/null 2>&1
 }
 
 removeWalletLinks() {
@@ -1013,7 +1042,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 			# IPv4 address is not already available
 			echo "${CYAN}#####${NONE} Registering public IPv4 address: ${WAN_IP} ${CYAN}#####${NONE}" && echo
 			# Add public IPv4 address to the system
-			ip -4 addr add "${WAN_IP}/23" dev ${ETH_INTERFACE} >/dev/null 2>&1
+			ip -4 addr add "${WAN_IP}/23" dev ${NET_INTERFACE} >/dev/null 2>&1
 			if [ $? -eq 0 ]; then
 				# Public ip address registered successfully
 				# Remember the ip4 address for later
@@ -1034,7 +1063,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 			# IPv6 address is not already available
 			echo "${CYAN}#####${NONE} Registering new IPv6 address: ${WAN_IP} ${CYAN}#####${NONE}" && echo
 			# Add new IPv6 address to the system
-			ip -6 addr add "${WAN_IP}/64" dev ${ETH_INTERFACE} >/dev/null 2>&1
+			ip -6 addr add "${WAN_IP}/64" dev ${NET_INTERFACE} >/dev/null 2>&1
 			if [ $? -eq 0 ]; then
 				# New ip address registered successfully
 				# Remember the ip6 address for later
@@ -1210,53 +1239,42 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 		echo "#!/bin/bash"
 		echo 'readonly CURRENT_USER="${1}"'
 		echo 'readonly WAN_IP="'"${WAN_IP}"'"'
+    echo 'readonly NET_INTERFACE="'"${NET_INTERFACE}"'"'
 		echo
 		echo "execute_command() {"
-		echo '	if [ "$USER" != "${CURRENT_USER}" ]; then'
-		echo '		su ${CURRENT_USER} -c "${1}"'
-		echo '	else'
-		echo '		eval "${1}"'
-		echo '	fi'
+		echo '  if [ "$USER" != "${CURRENT_USER}" ]; then'
+		echo '    su ${CURRENT_USER} -c "${1}"'
+		echo '  else'
+		echo '    eval "${1}"'
+		echo '  fi'
 		echo "}"
 		echo
-		echo 'if [ -f "${0%/*}/'"${IP4_CONFIG_NAME}"'" ] || [ -f "${0%/*}/'"${IP6_CONFIG_NAME}"'" ]; then'
-		echo '	ETH_INTERFACE="ens3"'
+		echo 'if ([ -f "${0%/*}/'"${IP4_CONFIG_NAME}"'" ] || [ -f "${0%/*}/'"${IP6_CONFIG_NAME}"'" ]) && [ -n "${WAN_IP}" ] && [ -n "${NET_INTERFACE}" ]; then'
+		echo '  ETH_STATUS=$(cat /sys/class/net/${NET_INTERFACE}/operstate)'
 		echo
-		echo '	if [ -n "${WAN_IP}" ]; then'
-		echo '		if [ ! -f /sys/class/net/${ETH_INTERFACE}/operstate ]; then'
-		echo '			ETH_INTERFACE="eth0"'
-		echo '		fi'
+		echo '  if [ "${ETH_STATUS}" = "up" ]; then'
+		echo '    if [ -f "${0%/*}/'"${IP6_CONFIG_NAME}"'" ]; then'
+		echo '      while [ -z "${IPV6_INT_BASE}" ]; do'
+		echo '        sleep 1'
+		echo '        IPV6_INT_BASE="$(ip -6 addr show dev ${NET_INTERFACE} | grep inet6 | awk -F '"'"'[ \t]+|/'"'"' '"'"'{print $3}'"'"' | grep -v ^fe80 | grep -v ^::1 | cut -f1-4 -d'"'"':'"'"' | head -1)"'
+		echo '        wait'
+		echo '      done'
 		echo
-		echo '		if [ ! -f /sys/class/net/${ETH_INTERFACE}/operstate ]; then'
-		echo '			ETH_INTERFACE="enp0s3"'
-		echo '		fi'
-		echo
-		echo '		ETH_STATUS=$(cat /sys/class/net/${ETH_INTERFACE}/operstate)'
-		echo
-		echo '		if [ "${ETH_STATUS}" = "up" ]; then'
-		echo '			if [ -f "${0%/*}/'"${IP6_CONFIG_NAME}"'" ]; then'
-		echo '				while [ -z "${IPV6_INT_BASE}" ]; do'
-		echo '					sleep 1'
-		echo '					IPV6_INT_BASE="$(ip -6 addr show dev ${ETH_INTERFACE} | grep inet6 | awk -F '"'"'[ \t]+|/'"'"' '"'"'{print $3}'"'"' | grep -v ^fe80 | grep -v ^::1 | cut -f1-4 -d'"'"':'"'"' | head -1)"'
-		echo '					wait'
-		echo '				done'
-		echo
-		echo '				if [ -z "$({ ip -6 addr | grep -i "${WAN_IP}"; })" ]; then'
-		echo '					ip -6 addr add "${WAN_IP}/64" dev ${ETH_INTERFACE} >/dev/null 2>&1'
-		echo '					if [ $? -eq 0 ]; then'
-		echo '						sleep 2'
-		echo '					fi'
-		echo '				fi'
-		echo '			else'
-		echo '				if [ -z "$({ ip -4 addr | grep -i "${WAN_IP}"; })" ]; then'
-		echo '					ip -4 addr add "${WAN_IP}/23" dev ${ETH_INTERFACE} >/dev/null 2>&1'
-		echo '					if [ $? -eq 0 ]; then'
-		echo '						sleep 2'
-		echo '					fi'
-		echo '				fi'
-		echo '			fi'
-		echo '		fi'
-		echo '	fi'
+		echo '      if [ -z "$({ ip -6 addr | grep -i "${WAN_IP}"; })" ]; then'
+		echo '        ip -6 addr add "${WAN_IP}/64" dev ${NET_INTERFACE} >/dev/null 2>&1'
+		echo '        if [ $? -eq 0 ]; then'
+		echo '          sleep 2'
+		echo '        fi'
+		echo '      fi'
+		echo '    else'
+		echo '      if [ -z "$({ ip -4 addr | grep -i "${WAN_IP}"; })" ]; then'
+		echo '        ip -4 addr add "${WAN_IP}/23" dev ${NET_INTERFACE} >/dev/null 2>&1'
+		echo '        if [ $? -eq 0 ]; then'
+		echo '          sleep 2'
+		echo '        fi'
+		echo '      fi'
+		echo '     fi'
+		echo '  fi'
 		echo 'fi'
 		echo
 		echo 'execute_command "'"${HOME_DIR}"'/'"${WALLET_INSTALL_DIR}"'/'"${WALLET_PREFIX}"'d -datadir='"${HOME}"'/'"${DATA_INSTALL_DIR}"'"'
