@@ -41,7 +41,6 @@ readonly PURPLE="\033[01;35m"
 readonly ULINE="\033[4m"
 readonly RC_LOCAL="/etc/rc.local"
 readonly NETWORK_BASE_TAG="5123"
-readonly CURRENT_USER="$(whoami)"
 readonly HOME_DIR="/usr/local/bin"
 readonly VERSION_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/VERSION"
 readonly SCRIPT_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/exor-mn-installer.sh"
@@ -67,6 +66,7 @@ NET_INTERFACE=""
 WRITE_IP4_CONF=0
 WRITE_IP6_CONF=0
 ARCHIVE_DIR=""
+CURRENT_USER="${SUDO_USER}"
 
 # Functions
 error_message() {
@@ -512,6 +512,11 @@ if ! contains "16.04" "$LINUX_VERSION"; then
     esac
 fi
 
+# Fix the current user variable in the event that $SUDO_USER is blank
+if [ -z "${CURRENT_USER}" ]; then
+  CURRENT_USER="$(whoami)"
+fi
+
 # Read command line arguments
 if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:sfbcuS" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,noswap,nofirewall,nobruteprotect,nochainsync,noosupgrade,stopall" -n "${0##*/}" -- "$@"); then
   # invalid command line arguments so show help menu
@@ -610,7 +615,7 @@ while true; do
 done
 
 # Verify that user has root
-if [ "${CURRENT_USER}" != "root" ]; then
+if [ "$(whoami)" != "root" ]; then
   echo && error_message "${ORANGE}Root${NONE} privileges not detected. This script must be run using the keyword '${CYAN}sudo${NONE}' to enable ${ORANGE}root${NONE} user"
 fi
 
