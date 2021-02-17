@@ -1019,8 +1019,15 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
     echo "${CYAN}#####${NONE} Configure firewall ${CYAN}#####${NONE}" && echo
     ufw default allow outgoing
     ufw default deny incoming
-    ufw allow OpenSSH
-    ufw limit OpenSSH
+
+    # Check if ssh is installed
+    if [ -n "$({ ufw app list | grep -E '^' | grep OpenSSH; })" ]; then
+      # Allow and limit ssh through firewall
+      ufw allow OpenSSH
+      ufw limit OpenSSH
+    fi
+
+    # Allow wallet port through firewall
     ufw allow ${PORT_NUMBER}
     ufw logging on
     ufw --force enable && echo
