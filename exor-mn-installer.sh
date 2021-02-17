@@ -5,7 +5,7 @@
 #
 # Run this script with the desired parameters or leave blank to install using defaults. Use -h for help.
 #
-# Tested to be working on Ubuntu 16.04 x64 with Vultr and Lunanode VPS
+# Tested to be working on Ubuntu 16.04+ and Debian 8.x+ x64
 # Please report other working instances to:
 #       Telegram: @joeuhren on https://t.me/ExorOfficialSupport
 #       or
@@ -39,7 +39,7 @@ readonly CYAN="\033[01;36m"
 readonly GREY="\033[01;30m"
 readonly PURPLE="\033[01;35m"
 readonly ULINE="\033[4m"
-readonly RC_LOCAL="/etc/rc.local"
+readonly RC_LOCAL="/etc/rc.local" # TODO: Remove this line in the near future
 readonly NETWORK_BASE_TAG="5123"
 readonly HOME_DIR="/usr/local/bin"
 readonly VERSION_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/VERSION"
@@ -67,6 +67,7 @@ WRITE_IP4_CONF=0
 WRITE_IP6_CONF=0
 ARCHIVE_DIR=""
 CURRENT_USER="${SUDO_USER}"
+USER_HOME_DIR="$(awk -F: -v v="${CURRENT_USER}" '{if ($1==v) print $6}' /etc/passwd)"
 
 # Functions
 error_message() {
@@ -208,7 +209,7 @@ check_stop_wallet() {
   # Check if the wallet is currently running
   if [ -f "${HOME_DIR}/${1}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${1}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then
     # Wallet is running. Issue stop command
-    ${HOME_DIR}/${1}/${WALLET_PREFIX}-cli -datadir=${HOME}/${2} stop >/dev/null 2>&1
+    ${HOME_DIR}/${1}/${WALLET_PREFIX}-cli -datadir=${USER_HOME_DIR}/${2} stop >/dev/null 2>&1
     # Wait for wallet to close    
     PERIOD=".  "
 
@@ -306,11 +307,7 @@ install_package() {
 
 extract_wallet_files() {
   echo "${CYAN}#####${NONE} Extract wallet files ${CYAN}#####${NONE}" && echo
-  tar -zxvf "${WALLET_BASE_DIR}/${WALLET_FILE}" -C "${HOME}" && echo
-}
-
-backup_rc_local() {
-  cp ${RC_LOCAL} ${RC_LOCAL}.$(date +%Y-%b-%d-%s).bak
+  tar -zxvf "${WALLET_BASE_DIR}/${WALLET_FILE}" -C "${USER_HOME_DIR}" && echo
 }
 
 write_config() {
@@ -338,7 +335,7 @@ write_config() {
       echo "masternodeaddr=${CONFIG_ADDRESS}"    
       echo "masternodeprivkey=$NULLGENKEY"
     fi
-  } > ${HOME}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME}
+  } > ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME}
 }
 
 wait_wallet_loaded() {
@@ -349,7 +346,7 @@ wait_wallet_loaded() {
   while ! (echo ${CURRENT_BLOCKS} | egrep -q '^[0-9]+$'); do
     sleep 1 &
     printf "\rWaiting for wallet to load%s" "${PERIOD}"
-    CURRENT_BLOCKS=$("${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli" -datadir="${HOME}/${DATA_INSTALL_DIR}" getblockcount) >/dev/null 2>&1
+    CURRENT_BLOCKS=$("${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli" -datadir="${USER_HOME_DIR}/${DATA_INSTALL_DIR}" getblockcount) >/dev/null 2>&1
 
     case $PERIOD in
       ".  ") PERIOD=".. "
@@ -498,11 +495,24 @@ stop_all() {
   echo
 }
 
-# Check linux version
+# TODO: Remove this function in the near future
+remove_rc_local() {
+  # Check if the rc.local file exists
+  if [ -f ${RC_LOCAL} ]; then
+    # Remove the reboot script line for the current wallet from the rc.local file
+    grep -v "${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME}" ${RC_LOCAL} > ${RC_LOCAL}.new; mv ${RC_LOCAL}.new ${RC_LOCAL} 
+  fi
+}
+
+add_cron_job() {
+  crontab -l | { cat; echo "@reboot sleep 30; ${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME} "\""${CURRENT_USER}"\"" & # AUTOMATICALLY ADDED VIA exor-mn-installer.sh DO NOT REMOVE OR CHANGE MANUALLY"; } | crontab -
+}
+
+# Check linux distribution
 LINUX_VERSION=$(cat /etc/issue.net)
-if ! contains "16.04" "$LINUX_VERSION"; then
-  echo && echo "Your linux version: ${ORANGE}$LINUX_VERSION${NONE}"
-  echo "This script has been designed to run on ${GREEN}Ubuntu 16.04${NONE}."
+if ! contains "Ubuntu" "$LINUX_VERSION" && ! contains "Debian" "$LINUX_VERSION"; then
+  echo && echo "Your linux distribution: ${ORANGE}$LINUX_VERSION${NONE}"
+  echo "This script has been designed to run on ${GREEN}Ubuntu 16.04+${NONE} and ${GREEN}Debian 8.x+${NONE}."
   echo "Would you like to continue installing anyway? [y/n]: ";
   read -p "" INSTALL_ANSWER
   
@@ -512,9 +522,10 @@ if ! contains "16.04" "$LINUX_VERSION"; then
     esac
 fi
 
-# Fix the current user variable in the event that $SUDO_USER is blank
+# Fix the current user and home directory variables in the event that $SUDO_USER is blank (installing as root)
 if [ -z "${CURRENT_USER}" ]; then
   CURRENT_USER="$(whoami)"
+  USER_HOME_DIR="$(awk -F: -v v="${CURRENT_USER}" '{if ($1==v) print $6}' /etc/passwd)"
 fi
 
 # Read command line arguments
@@ -620,7 +631,7 @@ if [ "$(whoami)" != "root" ]; then
 fi
 
 # Ensure commands are executed from the users home directory
-eval "cd ${HOME}"
+eval "cd ${USER_HOME_DIR}"
 # Set install directories
 if [ "$INSTALL_NUM" -eq 1 ]; then
   DATA_INSTALL_DIR="${DEFAULT_DATA_DIR}"
@@ -654,11 +665,11 @@ case $INSTALL_TYPE in
 esac
 
 if [ "$INSTALL_TYPE" = "Install" ]; then
-  if [ -f ${HOME}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} ]; then
+  if [ -f ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} ]; then
     # Update install
     if [ -z "$NULLGENKEY" ]; then
       # Read the genkey value from the config file
-      NULLGENKEY=$(grep "masternodeprivkey" ${HOME}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} | sed -e "s/masternodeprivkey=//g")
+      NULLGENKEY=$(grep "masternodeprivkey" ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} | sed -e "s/masternodeprivkey=//g")
     fi
 
     # Read ip address information
@@ -706,7 +717,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 
     if [ -z "${WAN_IP}" ] && [ -z "${INITIAL_NET_TYPE}" ]; then
       # Read the ip address value from the config file
-      WAN_IP=$(grep "masternodeaddr" ${HOME}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} | sed -e "s/masternodeaddr=//g")
+      WAN_IP=$(grep "masternodeaddr" ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} | sed -e "s/masternodeaddr=//g")
       # Check if the WAN IP is blank
       if [ -n "$WAN_IP" ]; then
         # Check if this is an IPv6 or IPv4 address
@@ -724,7 +735,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 
     if [ -z "$PORT_NUMBER_ARG" ]; then
       # Read the port value from the config file
-      PORT_NUMBER=$(grep "^port=" ${HOME}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} | sed -e "s/port=//g")
+      PORT_NUMBER=$(grep "^port=" ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} | sed -e "s/port=//g")
       # Check if port number was read correctly
       if [ -z "$PORT_NUMBER" ]; then
         # Port cannot be read. Revert back to default port
@@ -823,9 +834,9 @@ if [ ${VERSION_LENGTH} -gt 0 ] && [ ${VERSION_LENGTH} -lt 10 ]; then
         # Overwrite the current script with the newest version
         {
           echo "$(curl -s -k "${SCRIPT_URL}?$(date +%s)")"
-        } > ${HOME}/${0##*/}
+        } > ${USER_HOME_DIR}/${0##*/}
         # Ensure script is executable
-        chmod +x ${HOME}/${0##*/}
+        chmod +x ${USER_HOME_DIR}/${0##*/}
         # Fix parameters before restarting
         case $INSTALL_TYPE in
           "Install") INSTALL_TYPE="i" ;;
@@ -866,7 +877,7 @@ if [ ${VERSION_LENGTH} -gt 0 ] && [ ${VERSION_LENGTH} -lt 10 ]; then
           OSUPGRADE=""
         fi
         # Restart the newest version of the script
-        eval "sh ${HOME}/${0##*/} -t ${INSTALL_TYPE} -w ${WALLET_TYPE}${NULLGENKEY} -N ${NET_TYPE}${WAN_IP}${PORT_NUMBER} -n ${INSTALL_NUM}${SWAP}${FIREWALL}${FAIL2BAN}${SYNCCHAIN}${OSUPGRADE}"
+        eval "sh ${USER_HOME_DIR}/${0##*/} -t ${INSTALL_TYPE} -w ${WALLET_TYPE}${NULLGENKEY} -N ${NET_TYPE}${WAN_IP}${PORT_NUMBER} -n ${INSTALL_NUM}${SWAP}${FIREWALL}${FAIL2BAN}${SYNCCHAIN}${OSUPGRADE}"
         exit
         ;;
     esac
@@ -905,7 +916,7 @@ echo && echo "${ULINE}${CYAN}${INSTALL_TYPE} Settings:${NONE}" && echo
 if [ "$INSTALL_TYPE" = "Install" ]; then
   echo "${CYAN}New Wallet Version:${NONE}     v$WALLET_VERSION"
 
-  if [ -f ${HOME}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} ]; then
+  if [ -f ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} ]; then
     echo "${CYAN}Install Type:${NONE}           UPDATE"
   else
     echo "${CYAN}Install Type:${NONE}           NEW INSTALL"
@@ -1132,7 +1143,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
           INSTALL_DEPENDENCIES=1
         fi
         # Check if there is a make file
-        if [ ! -f "${HOME}/${SOURCE_DIR}/Makefile" ]; then
+        if [ ! -f "${USER_HOME_DIR}/${SOURCE_DIR}/Makefile" ]; then
           # Make file is missing = need to rebuild the entire source
           INSTALL_DEPENDENCIES=1
           BUILD_SOURCE=1
@@ -1162,7 +1173,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
         # Remember current directory
         CURRENT_DIR=${PWD}
         # Check if source directory exists
-        if [ ! -d "${HOME}/${SOURCE_DIR}" ]; then
+        if [ ! -d "${USER_HOME_DIR}/${SOURCE_DIR}" ]; then
           # Download the github repo
           echo "${CYAN}#####${NONE} Downloading source code ${CYAN}#####${NONE}" && echo
           eval "git clone ${SOURCE_URL} ${SOURCE_DIR}"
@@ -1176,7 +1187,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
         eval "cd .."
         # Build wallet from source code
         eval "./autogen.sh"
-        eval "./configure --prefix=${HOME}/${SOURCE_DIR}/depends/x86_64-linux-gnu --without-gui --enable-glibc-back-compat --enable-reduce-exports --disable-bench --disable-gui-tests --disable-tests"
+        eval "./configure --prefix=${USER_HOME_DIR}/${SOURCE_DIR}/depends/x86_64-linux-gnu --without-gui --enable-glibc-back-compat --enable-reduce-exports --disable-bench --disable-gui-tests --disable-tests"
       fi
 
       # Make the files
@@ -1185,10 +1196,10 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
       # Return to previous directory
       eval "cd ${CURRENT_DIR}"
       # Move wallet files
-      find ${SOURCE_DIR} -name "${WALLET_PREFIX}d" -type f -exec strip {} \; -exec mv {} "${HOME}/" \;
-      find ${SOURCE_DIR} -name "${WALLET_PREFIX}-cli" -type f -exec strip {} \; -exec mv {} "${HOME}/" \;
+      find ${SOURCE_DIR} -name "${WALLET_PREFIX}d" -type f -exec strip {} \; -exec mv {} "${USER_HOME_DIR}/" \;
+      find ${SOURCE_DIR} -name "${WALLET_PREFIX}-cli" -type f -exec strip {} \; -exec mv {} "${USER_HOME_DIR}/" \;
       # Change directory to the wallet install location
-      eval "cd ${HOME}"
+      eval "cd ${USER_HOME_DIR}"
       # Add wallet files to a new archive that can be used to install faster for 2+ installs
       tar -cvzf ${WALLET_FILE} ${WALLET_PREFIX}d ${WALLET_PREFIX}-cli >/dev/null 2>&1
       # Move the archive into the root wallet directory
@@ -1274,29 +1285,36 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
     echo '  fi'
     echo 'fi'
     echo
-    echo 'execute_command "'"${HOME_DIR}"'/'"${WALLET_INSTALL_DIR}"'/'"${WALLET_PREFIX}"'d -datadir='"${HOME}"'/'"${DATA_INSTALL_DIR}"'"'
+    echo 'execute_command "'"${HOME_DIR}"'/'"${WALLET_INSTALL_DIR}"'/'"${WALLET_PREFIX}"'d -datadir='"${USER_HOME_DIR}"'/'"${DATA_INSTALL_DIR}"'"'
   } > ${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME}
 
-  if [ ! -f ${HOME}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} ]; then
+  if [ ! -f ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} ]; then
     # This is a new install
-    # Backup the current rc.local file
-    backup_rc_local
-    # Ensure that the rc.local file is executable
-    chmod +x ${RC_LOCAL}
-    # Ensure that the wallet automatically starts up after reboot
-    sed -e '$i '"${HOME_DIR}"'/'"${WALLET_INSTALL_DIR}"'/'"${REBOOT_SCRIPT_NAME}"' "'"${CURRENT_USER}"'" &' -i ${RC_LOCAL}
+    # Add a new crontab entry for the root user to ensure that the wallet automatically starts up after reboot
+    add_cron_job
+  else
+    # This is an update install
+    # Check if this is an older install that was using the rc.local startup approach
+    grep -i "${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME}" ${RC_LOCAL} >/dev/null 2>&1
+
+    if [ $? -eq 0 ]; then
+      # Remove the reboot script for this wallet from the rc.local file
+      remove_rc_local
+      # Add a new crontab entry for the root user to ensure that the wallet automatically starts up after reboot
+      add_cron_job
+    fi
   fi
 
-  if [ "${ARCHIVE_DIR}" != "" ] && [ -d "${HOME}/${ARCHIVE_DIR}" ]; then
+  if [ "${ARCHIVE_DIR}" != "" ] && [ -d "${USER_HOME_DIR}/${ARCHIVE_DIR}" ]; then
     # Find the proper files from within the extracted directory and move them to the install directory
-    find ${HOME}/${ARCHIVE_DIR} -name "${WALLET_PREFIX}d" -type f -exec mv {} "${HOME_DIR}/${WALLET_INSTALL_DIR}/" \;
-    find ${HOME}/${ARCHIVE_DIR} -name "${WALLET_PREFIX}-cli" -type f -exec mv {} "${HOME_DIR}/${WALLET_INSTALL_DIR}/" \;
+    find ${USER_HOME_DIR}/${ARCHIVE_DIR} -name "${WALLET_PREFIX}d" -type f -exec mv {} "${HOME_DIR}/${WALLET_INSTALL_DIR}/" \;
+    find ${USER_HOME_DIR}/${ARCHIVE_DIR} -name "${WALLET_PREFIX}-cli" -type f -exec mv {} "${HOME_DIR}/${WALLET_INSTALL_DIR}/" \;
     # Remove extracted directory
-    rm -rf "${HOME}/${ARCHIVE_DIR}"
+    rm -rf "${USER_HOME_DIR}/${ARCHIVE_DIR}"
   else
     # Move extracted files from the home directory to the install directory
-    mv "${HOME}/${WALLET_PREFIX}d" "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d"
-    mv "${HOME}/${WALLET_PREFIX}-cli" "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli"
+    mv "${USER_HOME_DIR}/${WALLET_PREFIX}d" "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d"
+    mv "${USER_HOME_DIR}/${WALLET_PREFIX}-cli" "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli"
   fi
 
   # Create easier links to the wallet files
@@ -1322,11 +1340,11 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
   COPY_BLOCKCHAIN=0
 
   # Check if the config file already exists (if yes, this is most likely an upgrade install)
-  if [ ! -f ${HOME}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} ]; then
+  if [ ! -f ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} ]; then
     # The config file does not exist
-    if [ ! -d "${HOME}/${DATA_INSTALL_DIR}" ]; then
+    if [ ! -d "${USER_HOME_DIR}/${DATA_INSTALL_DIR}" ]; then
       # Manually create the data directory
-      execute_command "mkdir ${HOME}/${DATA_INSTALL_DIR}"
+      execute_command "mkdir ${USER_HOME_DIR}/${DATA_INSTALL_DIR}"
     fi
     # Attempt to copy the blockchain from another installed wallet near the end of the install
     COPY_BLOCKCHAIN=1
@@ -1339,11 +1357,11 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
   if [ -z "$NULLGENKEY" ]; then
     # Start wallet
     echo "Temporarily starting new wallet"
-    execute_command "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d -datadir=${HOME}/${DATA_INSTALL_DIR}"
+    execute_command "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR}"
     # Wait for wallet to load
     wait_wallet_loaded
     # Get the genkey value
-    NULLGENKEY=$("${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli" -datadir="${HOME}/${DATA_INSTALL_DIR}" masternode genkey) >/dev/null 2>&1
+    NULLGENKEY=$("${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli" -datadir="${USER_HOME_DIR}/${DATA_INSTALL_DIR}" masternode genkey) >/dev/null 2>&1
     echo && printf "Generated new genkey value: ${NULLGENKEY}"
     # Stop the wallet
     echo && check_stop_wallet "${WALLET_INSTALL_DIR}" "${DATA_INSTALL_DIR}"
@@ -1362,11 +1380,11 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
            DATA_DIR_TEST="${DEFAULT_DATA_DIR}${i}" ;;
       esac
 
-      if [ -d "${HOME}/${DATA_DIR_TEST}" ] && [ "${DATA_DIR_TEST}" != "${DATA_INSTALL_DIR}" ]; then
+      if [ -d "${USER_HOME_DIR}/${DATA_DIR_TEST}" ] && [ "${DATA_DIR_TEST}" != "${DATA_INSTALL_DIR}" ]; then
         # Found another data directory
         # Delete the necessary files from the current data directory
-        rm -rf "${HOME}/${DATA_INSTALL_DIR}/blocks"
-        rm -rf "${HOME}/${DATA_INSTALL_DIR}/chainstate"
+        rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/blocks"
+        rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/chainstate"
         NEED_RESTART=0
 
         # Check if the other wallet is currently running and stop it if running
@@ -1379,15 +1397,15 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 
         # Copy blockchain files from the other data directory
         echo "Copy blockchain from wallet #${i}"
-        execute_command "cp -rf ${HOME}/${DATA_DIR_TEST}/blocks ${HOME}/${DATA_INSTALL_DIR}/blocks"
-        execute_command "cp -rf ${HOME}/${DATA_DIR_TEST}/chainstate ${HOME}/${DATA_INSTALL_DIR}/chainstate"
+        execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/blocks ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/blocks"
+        execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/chainstate ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/chainstate"
         execute_command "sync && wait"
 
         # Check if other wallet needs to be restarted
         if [ $NEED_RESTART -eq 1 ]; then
           # Restart other wallet
           echo "Restart wallet #${i}"
-          execute_command "${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}d -datadir=${HOME}/${DATA_DIR_TEST}"
+          execute_command "${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}d -datadir=${USER_HOME_DIR}/${DATA_DIR_TEST}"
         fi
 
         # Return from loop
@@ -1402,7 +1420,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
   echo "Wallet setup complete" && echo
   # Start wallet
   echo "${CYAN}#####${NONE} Start Wallet ${CYAN}#####${NONE}" && echo
-  execute_command "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d -datadir=${HOME}/${DATA_INSTALL_DIR}"
+  execute_command "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR}"
   # Wait for wallet to load
   echo && echo "${CYAN}#####${NONE} Wait for wallet to load ${CYAN}#####${NONE}" && echo
   wait_wallet_loaded && echo
@@ -1432,7 +1450,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
           SECONDS=0
         fi
 
-        CURRENT_BLOCKS=$(${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli -datadir=${HOME}/${DATA_INSTALL_DIR} getblockcount)
+        CURRENT_BLOCKS=$(${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR} getblockcount)
         printf "\rSyncing: %s (%.2f %%)" "${CURRENT_BLOCKS}/${TOTAL_BLOCKS}" $(awk "BEGIN { print 100*${CURRENT_BLOCKS}/${TOTAL_BLOCKS} }")
 
         if [ "$LAST_BLOCKS" -eq "$CURRENT_BLOCKS" ]; then
@@ -1467,8 +1485,8 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
           echo "   ${WALLET_PREFIX}-cli stop"
           echo "   ${WALLET_PREFIX}d -resync"
         else
-          echo "   ${WALLET_PREFIX}-cli${INSTALL_NUM} -datadir=${HOME}/${DATA_INSTALL_DIR} stop"
-          echo "   ${WALLET_PREFIX}d${INSTALL_NUM} -datadir=${HOME}/${DATA_INSTALL_DIR} -resync"
+          echo "   ${WALLET_PREFIX}-cli${INSTALL_NUM} -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR} stop"
+          echo "   ${WALLET_PREFIX}d${INSTALL_NUM} -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR} -resync"
         fi
 
         echo && echo -n "Press [ENTER] to continue"
@@ -1505,25 +1523,25 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
     echo "${CYAN}Masternode status check:${NONE} ${WALLET_PREFIX}-cli getmasternodestatus"
   else
     echo "${CYAN}Uninstall wallet:${NONE} sudo sh ${0##*/} -t u -n $INSTALL_NUM"
-    echo "${CYAN}Manually stop wallet:${NONE} ${WALLET_PREFIX}-cli${INSTALL_NUM} -datadir=${HOME}/${DATA_INSTALL_DIR} stop"
-    echo "${CYAN}Manually start wallet:${NONE} ${WALLET_PREFIX}d${INSTALL_NUM} -datadir=${HOME}/${DATA_INSTALL_DIR}"
-    echo "${CYAN}View wallets current block:${NONE} ${WALLET_PREFIX}-cli${INSTALL_NUM} -datadir=${HOME}/${DATA_INSTALL_DIR} getblockcount"
-    echo "${CYAN}Masternode status check:${NONE} ${WALLET_PREFIX}-cli${INSTALL_NUM} -datadir=${HOME}/${DATA_INSTALL_DIR} getmasternodestatus"
+    echo "${CYAN}Manually stop wallet:${NONE} ${WALLET_PREFIX}-cli${INSTALL_NUM} -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR} stop"
+    echo "${CYAN}Manually start wallet:${NONE} ${WALLET_PREFIX}d${INSTALL_NUM} -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR}"
+    echo "${CYAN}View wallets current block:${NONE} ${WALLET_PREFIX}-cli${INSTALL_NUM} -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR} getblockcount"
+    echo "${CYAN}Masternode status check:${NONE} ${WALLET_PREFIX}-cli${INSTALL_NUM} -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR} getmasternodestatus"
   fi
 
   echo && echo "${ORANGE}===================================================================${NONE}"
   echo "${ORANGE}Scroll up for useful commands and additional configuration settings${NONE}"
   echo "${ORANGE}===================================================================${NONE}"
 else
-  # Check to ensure this wallet # is actually installed  
-  if [ ! -d "${HOME_DIR}/${WALLET_INSTALL_DIR}" ] && [ ! -d "${HOME}/${DATA_INSTALL_DIR}" ]; then
+  # Check to ensure this wallet # is actually installed
+  if [ ! -d "${HOME_DIR}/${WALLET_INSTALL_DIR}" ] && [ ! -d "${USER_HOME_DIR}/${DATA_INSTALL_DIR}" ]; then
     # Wallet is not installed
     error_message "Cannot find installed wallet in ${HOME_DIR}/${WALLET_INSTALL_DIR}"
   fi
 
   echo "The following directories will be deleted:" && echo
   echo "${CYAN}Wallet Directory:${NONE}    ${HOME_DIR}/${WALLET_INSTALL_DIR}"
-  echo "${CYAN}Data Directory:${NONE}      ${HOME}/${DATA_INSTALL_DIR}"
+  echo "${CYAN}Data Directory:${NONE}      ${USER_HOME_DIR}/${DATA_INSTALL_DIR}"
   echo && echo -n "Are you sure you want to completely uninstall the wallet? [y/n]: "
   read -p "" UNINSTALL_ANSWER
 
@@ -1554,15 +1572,15 @@ else
     unregisterIP6Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME}")
   fi
 
-  # Backup the current rc.local file
-  backup_rc_local
   # Remove the reboot script for this wallet from the rc.local file
-  grep -v "${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME}" ${RC_LOCAL} > ${RC_LOCAL}.new; mv ${RC_LOCAL}.new ${RC_LOCAL}
+  remove_rc_local
+  # Remove the reboot script for this wallet from the crontab
+  ( crontab -l | grep -v -F "@reboot sleep 30; ${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME}" ) | crontab -
   # Remove old links to wallet binaries
   removeWalletLinks
   # Remove the wallet and data directories
   rm -rf "${HOME_DIR}/${WALLET_INSTALL_DIR}"
-  rm -rf "${HOME}/${DATA_INSTALL_DIR}"
+  rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}"
 
   # Check if there are any more installs
   FULL_UNINSTALL=1
@@ -1582,7 +1600,7 @@ else
 
   if [ "${FULL_UNINSTALL}" -eq 1 ]; then
     # Remove the source directory if it exists to ensure that all data is completely uninstalled
-    rm -rf "${HOME}/${SOURCE_DIR}"
+    rm -rf "${USER_HOME_DIR}/${SOURCE_DIR}"
   fi
 fi
 
