@@ -133,6 +133,11 @@ This would allow you to change an IPv6 installed wallet into an IPv4 wallet. **N
      The node install #. Default install # is 1. Increment this value to set up 2+ nodes. **Only a single wallet will be installed each time the script is run**. Valid inputs are 1-99
      
      Usage Example: `sudo sh exor-mn-installer.sh -n 2`
+- -a or --adapter
+
+     Specify the network adapter the node should be bound to. If left blank the first available and enabled adapter will be chosen
+     
+     Usage Example: `sudo sh exor-mn-installer.sh -a ens38`
 - -s or --noswap
 
      Skip creating the disk swap file. The swap file only needs to be created once per computer. It is strongly recommended that you do not skip this install unless you are sure your VPS has enough memory

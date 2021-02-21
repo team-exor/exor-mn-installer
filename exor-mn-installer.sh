@@ -26,6 +26,7 @@ readonly DEFAULT_DATA_DIR=".exor"
 readonly WALLET_CONFIG_NAME="exor.conf"
 readonly IP4_CONFIG_NAME=".ip4.conf"
 readonly IP6_CONFIG_NAME=".ip6.conf"
+readonly NET_INTERFACE_CONFIG_NAME=".net.conf"
 readonly REBOOT_SCRIPT_NAME=".reboot.sh"
 readonly WALLET_FILE_TEMPLATE="\${WALLET_PREFIX}-\${WALLET_VERSION}-x86_64-linux-gnu.tar.gz"
 readonly WALLET_PREFIX="exor"
@@ -111,6 +112,9 @@ help_menu() {
   echo "            increment this value to set up 2+ nodes"
   echo "            only a single wallet will be installed each time the script is run"
   echo "            valid inputs are 1-99"
+  echo "  -a, --adapter [string]"
+  echo "            bind node to a specific network adapter by name"
+  echo "            if left blank the first available and enabled adapter will be chosen"
   echo "  -s, --noswap"
   echo "            skip creating the disk swap file"
   echo "            default is to install the disk swap file"
@@ -231,49 +235,58 @@ check_stop_wallet() {
 }
 
 init_network() {
-  # Loop through all known network interfaces
-  for file in /sys/class/net/*; do
-    # Remove the path from the network interface name
-    NET_INTERFACE="$(basename "$file")"
+  # Check if the network interface was already set
+  if [ -z "${NET_INTERFACE}" ]; then
+    # Loop through all known network interfaces
+    for file in /sys/class/net/*; do
+      # Remove the path from the network interface name
+      NET_INTERFACE="$(basename "$file")"
 
-    # Lookup more details about this network interface
-    INTERFACE_DETAIL="$(ip address show $(basename "$file"))"
+      # Lookup more details about this network interface
+      INTERFACE_DETAIL="$(ip address show $(basename "$file"))"
 
-    # Interface is invalid until proven to be valid
-    VALID_INTERFACE=0
+      # Interface is invalid until proven to be valid
+      VALID_INTERFACE=0
 
-    # Check if this is an IPv4 or IPv6 install
-    if [ "$NET_TYPE" -eq 6 ]; then
-      # This is an IPv6 install
-      # Check if this is a valid IPv6 network interface
-      if contains " inet6 " "${INTERFACE_DETAIL}" && ! contains " inet6 ::1" "${INTERFACE_DETAIL}"; then
-        # The interface is valid
-        VALID_INTERFACE=1
+      # Check if this is an IPv4 or IPv6 install
+      if [ "$NET_TYPE" -eq 6 ]; then
+        # This is an IPv6 install
+        # Check if this is a valid IPv6 network interface
+        if contains " inet6 " "${INTERFACE_DETAIL}" && ! contains " inet6 ::1" "${INTERFACE_DETAIL}"; then
+          # The interface is valid
+          VALID_INTERFACE=1
+        fi
+      else
+        # This is an IPv4 install
+        # Check if this is a valid IPv4 network interface
+        if contains " inet " "${INTERFACE_DETAIL}" && ! contains " inet 127.0.0.1" "${INTERFACE_DETAIL}"; then
+          # The interface is valid
+          VALID_INTERFACE=1
+        fi
       fi
-    else
-      # This is an IPv4 install
-      # Check if this is a valid IPv4 network interface
-      if contains " inet " "${INTERFACE_DETAIL}" && ! contains " inet 127.0.0.1" "${INTERFACE_DETAIL}"; then
-        # The interface is valid
-        VALID_INTERFACE=1
-      fi
-    fi
 
-    # Check if the interface is valid
-    if [ "$VALID_INTERFACE" -eq 1 ]; then
-      # Check if the operstate file exists for this interface
-      if [ -f /sys/class/net/${NET_INTERFACE}/operstate ]; then
-        # Interface operstate file exists
-        # Check the current status
-        if [ "$(cat /sys/class/net/${NET_INTERFACE}/operstate)" = "up" ]; then
+      # Check if the interface is valid
+      if [ "$VALID_INTERFACE" -eq 1 ]; then
+        # Ensure that the interface is enabled
+        if [ "$(check_network_interface_enabled ${NET_INTERFACE})" = "1" ]; then
           # This interface is enabled and meets all requirements
           VALID_INTERFACE=2
           # Stop checking for a valid network interfaces
           break
         fi
       fi
+    done
+  else
+    # Network interface already set via command line or "remembered" via update install
+    # Ensure that the interface is enabled
+    if [ "$(check_network_interface_enabled ${NET_INTERFACE})" = "1" ]; then
+      # This interface is enabled and meets all requirements
+      VALID_INTERFACE=2
+    else
+      # Interface is invalid
+      VALID_INTERFACE=0
     fi
-  done
+  fi
 
   # Check if a valid network interface was found
   if [ "$VALID_INTERFACE" -ne 2 ]; then
@@ -290,6 +303,24 @@ init_ipv6() {
 
   if [ -z "${IPV6_INT_BASE}" ]; then
     echo && error_message "No IPv6 support found. Did you forget to enable it during installation?"
+  fi
+}
+
+check_network_interface_enabled() {
+  # Check if the operstate file exists for this interface
+  if [ -f /sys/class/net/${1}/operstate ]; then
+    # Interface operstate file exists
+    # Check the current status
+    if [ "$(cat /sys/class/net/${1}/operstate)" = "up" ]; then
+      # This interface is enabled and meets all requirements
+      echo "1"
+    else
+      # This interface is disabled
+      echo "0"
+    fi
+  else
+    # This interface doesn't have a state file and is therefore invalid
+    echo "0"
   fi
 }
 
@@ -529,7 +560,7 @@ if [ -z "${CURRENT_USER}" ]; then
 fi
 
 # Read command line arguments
-if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:sfbcuS" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,noswap,nofirewall,nobruteprotect,nochainsync,noosupgrade,stopall" -n "${0##*/}" -- "$@"); then
+if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:a:sfbcuS" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,adapter:,noswap,nofirewall,nobruteprotect,nochainsync,noosupgrade,stopall" -n "${0##*/}" -- "$@"); then
   # invalid command line arguments so show help menu
   help_menu
   exit;
@@ -590,6 +621,13 @@ while true; do
       shift;
       if [ -n "$1" ]; then
         INSTALL_NUM="$1";
+        shift;
+      fi
+      ;;
+    -a|--adapter)
+      shift;
+      if [ -n "$1" ]; then
+        NET_INTERFACE="$1";
         shift;
       fi
       ;;
@@ -670,6 +708,12 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
     if [ -z "$NULLGENKEY" ]; then
       # Read the genkey value from the config file
       NULLGENKEY=$(grep "masternodeprivkey" ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} | sed -e "s/masternodeprivkey=//g")
+    fi
+
+    # Read network interface information
+    if [ -z "$NET_INTERFACE" ] && [ -f ${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME} ]; then
+      # Remember network interface from last install
+      NET_INTERFACE=$(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME}")
     fi
 
     # Read ip address information
@@ -851,6 +895,10 @@ if [ ${VERSION_LENGTH} -gt 0 ] && [ ${VERSION_LENGTH} -lt 10 ]; then
         if [ -n "$PORT_NUMBER" ]; then
           PORT_NUMBER=" -p ${PORT_NUMBER}"
         fi
+        if [ -z "$NET_INTERFACE" ]; then
+          init_network
+        fi
+        NET_INTERFACE=" -a ${NET_INTERFACE}"
         if [ "$SWAP" -eq 0 ]; then
           SWAP=" -s"
         else
@@ -877,7 +925,7 @@ if [ ${VERSION_LENGTH} -gt 0 ] && [ ${VERSION_LENGTH} -lt 10 ]; then
           OSUPGRADE=""
         fi
         # Restart the newest version of the script
-        eval "sh ${USER_HOME_DIR}/${0##*/} -t ${INSTALL_TYPE} -w ${WALLET_TYPE}${NULLGENKEY} -N ${NET_TYPE}${WAN_IP}${PORT_NUMBER} -n ${INSTALL_NUM}${SWAP}${FIREWALL}${FAIL2BAN}${SYNCCHAIN}${OSUPGRADE}"
+        eval "sh ${USER_HOME_DIR}/${0##*/} -t ${INSTALL_TYPE} -w ${WALLET_TYPE}${NULLGENKEY} -N ${NET_TYPE}${WAN_IP}${PORT_NUMBER}${NET_INTERFACE} -n ${INSTALL_NUM}${SWAP}${FIREWALL}${FAIL2BAN}${SYNCCHAIN}${OSUPGRADE}"
         exit
         ;;
     esac
@@ -939,6 +987,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 
   echo "${CYAN}IP Address:${NONE}             $WAN_IP"
   echo "${CYAN}Port #:${NONE}                 $PORT_NUMBER"
+  echo "${CYAN}Network Interface:${NONE}      ${NET_INTERFACE}"
   echo "${CYAN}Install Directory:${NONE}      ${HOME_DIR}/${WALLET_INSTALL_DIR}"
 
   if [ "$SWAP" -eq 0 ]; then
@@ -1238,6 +1287,9 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
   if [ ! -d "${HOME_DIR}/${WALLET_INSTALL_DIR}" ]; then
     mkdir "${HOME_DIR}/${WALLET_INSTALL_DIR}"
   fi
+
+  # Create a small file in the wallet directory to be used for remembering the network interface used for this node
+  echo "${NET_INTERFACE}" > ${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME}
 
   if [ $WRITE_IP4_CONF -eq 1 ]; then
     # Create a small file in the wallet directory to be used for removal of ip4 address at a later time
@@ -1561,6 +1613,12 @@ else
   if [ -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then
     # Stop the running wallet
     echo && check_stop_wallet "${WALLET_INSTALL_DIR}" "${DATA_INSTALL_DIR}"
+  fi
+
+  # Check if the wallet was bound to a specific network interface
+  if [ -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME}" ]; then
+    # Remember network interface from last install
+    NET_INTERFACE=$(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME}")
   fi
 
   # Check if the wallet created an IPv4 address
