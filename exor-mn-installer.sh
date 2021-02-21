@@ -691,14 +691,8 @@ case $NET_TYPE in
 esac
 
 case $INSTALL_TYPE in
-  i) INSTALL_TYPE="Install"
-     ;;
-  I) INSTALL_TYPE="Install"
-     ;;
-  u) INSTALL_TYPE="Uninstall"
-     ;;
-  U) INSTALL_TYPE="Uninstall"
-     ;;
+  [iI]) INSTALL_TYPE="Install" ;;
+  [uU]) INSTALL_TYPE="Uninstall" ;;
   *) echo && error_message "Invalid install type" ;;
 esac
 
