@@ -469,11 +469,11 @@ online_wallet_check() {
 }
 
 unregisterIP4Address() {
-  ip -4 addr del "${1}/23" dev ${NET_INTERFACE} >/dev/null 2>&1
+  ip -4 addr del "${1}/23" dev ${2} >/dev/null 2>&1
 }
 
 unregisterIP6Address() {
-  ip -6 addr del "${1}/64" dev ${NET_INTERFACE} >/dev/null 2>&1
+  ip -6 addr del "${1}/64" dev ${2} >/dev/null 2>&1
 }
 
 removeWalletLinks() {
@@ -724,10 +724,6 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 
       # Initialize network variables
       init_network
-      # Unregister previous ip address
-      unregisterIP4Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME}")
-      # Remove the IPv4 config file
-      rm -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME}"
     fi
 
     if [ -f ${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME} ]; then
@@ -747,10 +743,6 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 
       # Initialize network variables
       init_network
-      # Unregister previous ip address
-      unregisterIP6Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME}")
-      # Remove the IPv6 config file
-      rm -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME}"
     fi
 
     if [ -z "${WAN_IP}" ] && [ -z "${INITIAL_NET_TYPE}" ]; then
@@ -1091,6 +1083,45 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
     install_package "pwgen" "password generator (required for wallet setup)"
   fi
 
+  # Create wallet directory if not exists
+  if [ ! -d "${HOME_DIR}/${WALLET_INSTALL_DIR}" ]; then
+    mkdir "${HOME_DIR}/${WALLET_INSTALL_DIR}"
+  fi
+
+  # Check if the node was previously bound to an IPv4 address
+  if [ -f ${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME} ]; then
+    # Check if the node was previously bound to a specific network interface
+    if [ -f ${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME} ]; then
+      # Remember the old network interface name
+      OLD_NET_INTERFACE="$(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME}")"
+    else
+      # Use the current network interface
+      OLD_NET_INTERFACE="${NET_INTERFACE}"
+    fi
+
+    # Unregister previous ip address
+    unregisterIP4Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME}") "${OLD_NET_INTERFACE}"
+    # Remove the IPv4 config file
+    rm -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME}"
+  fi
+
+  # Check if the node was previously bound to an IPv6 address
+  if [ -f ${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME} ]; then
+    # Check if the node was previously bound to a specific network interface
+    if [ -f ${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME} ]; then
+      # Remember the old network interface name
+      OLD_NET_INTERFACE="$(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME}")"
+    else
+      # Use the current network interface
+      OLD_NET_INTERFACE="${NET_INTERFACE}"
+    fi
+
+    # Unregister previous ip address
+    unregisterIP6Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME}") "${OLD_NET_INTERFACE}"
+    # Remove the IPv6 config file
+    rm -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME}"
+  fi
+
   if [ "$NET_TYPE" -eq 4 ]; then
     # IPv4 address setup
     CONFIG_ADDRESS="${WAN_IP}:${DEFAULT_PORT_NUMBER}"
@@ -1112,6 +1143,12 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
         error_message "Unable to create IPv4 address"
       fi
     fi
+
+    # Check if the IPv4 address should be remembered
+    if [ $WRITE_IP4_CONF -eq 1 ]; then
+      # Create a small file in the wallet directory to be used for removal of ip4 address at a later time
+      echo "${WAN_IP}" > ${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME}
+    fi
   else
     # IPv6 address setup
     CONFIG_ADDRESS="[${WAN_IP}]:${DEFAULT_PORT_NUMBER}"
@@ -1132,6 +1169,12 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
         # Error while trying to create the IPv6 adddress
         error_message "Unable to create IPv6 address"
       fi
+    fi
+
+    # Check if the IPv6 address should be remembered
+    if [ $WRITE_IP6_CONF -eq 1 ]; then
+      # Create a small file in the wallet directory to be used for removal of ip6 address at a later time
+      echo "${WAN_IP}" > ${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME}
     fi
   fi
 
@@ -1277,23 +1320,8 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
   # Wallet setup  
   echo "${CYAN}#####${NONE} Wallet setup ${CYAN}#####${NONE}" && echo
 
-  # Create wallet directory if not exists
-  if [ ! -d "${HOME_DIR}/${WALLET_INSTALL_DIR}" ]; then
-    mkdir "${HOME_DIR}/${WALLET_INSTALL_DIR}"
-  fi
-
   # Create a small file in the wallet directory to be used for remembering the network interface used for this node
   echo "${NET_INTERFACE}" > ${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME}
-
-  if [ $WRITE_IP4_CONF -eq 1 ]; then
-    # Create a small file in the wallet directory to be used for removal of ip4 address at a later time
-    echo "${WAN_IP}" > ${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME}
-  fi
-
-  if [ $WRITE_IP6_CONF -eq 1 ]; then
-    # Create a small file in the wallet directory to be used for removal of ip6 address at a later time
-    echo "${WAN_IP}" > ${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME}
-  fi
 
   # Create a small script that will be used to auto-start the wallet on reboot and register IP address if necessary
   {
@@ -1620,7 +1648,7 @@ else
     # Initialize network variables for use below
     init_network
     # Unregister the IPv4 address
-    unregisterIP4Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME}")
+    unregisterIP4Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME}") "${NET_INTERFACE}"
   fi
 
   # Check if the wallet created an IPv6 address
@@ -1628,7 +1656,7 @@ else
     # Initialize IPv6 variables for use below
     init_ipv6
     # Unregister the IPv6 address
-    unregisterIP6Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME}")
+    unregisterIP6Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME}") "${NET_INTERFACE}"
   fi
 
   # Remove the reboot script for this wallet from the rc.local file
