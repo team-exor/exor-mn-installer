@@ -1659,6 +1659,20 @@ else
     unregisterIP6Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME}") "${NET_INTERFACE}"
   fi
 
+  # Check if the wallet config file exists
+  if [ -f ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} ]; then
+    # Check if the ufw firewall is installed
+    if [ -n "$({ dpkg -l | grep -E '^ii' | grep ufw; })" ]; then
+      # Read the port value from the config file
+      PORT_NUMBER=$(grep "^port=" ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} | sed -e "s/port=//g")
+      # Check if port number was read correctly
+      if [ -n "$PORT_NUMBER" ]; then
+        # Remove the firewall rule for this nodes port number
+        ufw delete allow ${PORT_NUMBER} >/dev/null 2>&1
+      fi
+    fi
+  fi
+
   # Remove the reboot script for this wallet from the rc.local file
   remove_rc_local
   # Remove the reboot script for this wallet from the crontab
