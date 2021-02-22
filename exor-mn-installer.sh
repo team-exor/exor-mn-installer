@@ -1552,7 +1552,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
         fi
 
         CURRENT_BLOCKS=$(${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR} getblockcount)
-        printf "\rSyncing: %s (%.2f %%)" "${CURRENT_BLOCKS}/${TOTAL_BLOCKS}" $(awk "BEGIN { print 100*${CURRENT_BLOCKS}/${TOTAL_BLOCKS} }")
+        printf "\rSyncing: %s (%.2f %%)" "${CURRENT_BLOCKS}/${TOTAL_BLOCKS}" $(awk "BEGIN { print (100*(${CURRENT_BLOCKS}/${TOTAL_BLOCKS}))-0.005 }")
 
         if [ "$LAST_BLOCKS" -eq "$CURRENT_BLOCKS" ]; then
           # The block count hasn't moved since last check
