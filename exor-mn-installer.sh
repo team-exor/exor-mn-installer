@@ -30,6 +30,7 @@ readonly NET_INTERFACE_CONFIG_NAME=".net.conf"
 readonly REBOOT_SCRIPT_NAME=".reboot.sh"
 readonly WALLET_FILE_TEMPLATE="\${WALLET_PREFIX}-\${WALLET_VERSION}-x86_64-linux-gnu.tar.gz"
 readonly WALLET_PREFIX="exor"
+readonly PEER_DATA_CMD="getconnectioncount"
 readonly BLOCKCOUNT_URL="https://explorer.exor.io/api/getblockcount"
 readonly RELEASES_URL="https://api.github.com/repos/team-exor/exor/releases"
 readonly NONE="\033[00m"
@@ -1504,7 +1505,26 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
   execute_command "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR}"
   # Wait for wallet to load
   echo && echo "${CYAN}#####${NONE} Wait for wallet to load ${CYAN}#####${NONE}" && echo
-  wait_wallet_loaded && echo
+  wait_wallet_loaded && echo && echo
+  # Wait for at least one peer connection to the wallet
+  PEER_DATA=""
+  PERIOD=".  "
+  EMPTY_ARRAY="[
+]"
+  while [ -z "${PEER_DATA}" ] || [ "${PEER_DATA}" = "" ] || [ "${PEER_DATA}" = "0" ] || [ "${PEER_DATA}" = "${EMPTY_ARRAY}" ]; do
+    sleep 1 &
+    printf "\rWaiting for peer connections%s" "${PERIOD}"
+    PEER_DATA=$("${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli" -datadir="${USER_HOME_DIR}/${DATA_INSTALL_DIR}" ${PEER_DATA_CMD}) >/dev/null 2>&1
+
+    case $PERIOD in
+      ".  ") PERIOD=".. "
+         ;;
+      ".. ") PERIOD="..."
+         ;;
+      *) PERIOD=".  " ;;
+    esac && wait
+  done
+  printf "\rWallet successfully connected to peers" && echo
 
   # If there is an active block explorer to check, the last step is to wait for the wallet to fully sync with the network (if not skipped)
   if [ "$SYNCCHAIN" -eq 1 ] && [ -n "${BLOCKCOUNT_URL}" ]; then
