@@ -217,7 +217,7 @@ check_stop_wallet() {
   if [ -f "${HOME_DIR}/${1}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${1}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then
     # Wallet is running. Issue stop command
     ${HOME_DIR}/${1}/${WALLET_PREFIX}-cli -datadir=${USER_HOME_DIR}/${2} stop >/dev/null 2>&1
-    # Wait for wallet to close    
+    # Wait for wallet to close
     PERIOD=".  "
 
     while [ -f "${HOME_DIR}/${1}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${1}/${WALLET_PREFIX}d" 2> /dev/null)" ]
@@ -230,7 +230,7 @@ check_stop_wallet() {
         ".. ") PERIOD="..."
            ;;
         *) PERIOD=".  " ;;
-      esac      
+      esac
       wait
     done
     printf "\rWallet closed successfully    " && echo
@@ -332,7 +332,7 @@ install_package() {
   echo "${CYAN}#####${NONE} Install ${2} ${CYAN}#####${NONE}" && echo
   sleep 2
   apt-get install ${1} -y && echo
-    
+
   # Check to ensure the package was installed
   if [ -z "$({ dpkg -l | grep -E '^ii' | grep ${1}; })" ]; then
     echo && error_message "Failed to install ${2}"
@@ -355,18 +355,18 @@ write_config() {
     echo "server=1"
     echo "daemon=1"
     echo "externalip=${CONFIG_ADDRESS}"
-    
+
     # Check if the ip address can be bound to the wallet
     if [ -n "$({ ip -${NET_TYPE} addr | grep -i "${WAN_IP}"; })" ]; then
       # Bind this address to the wallet
       echo "bind=${CONFIG_ADDRESS}"
     fi
-    
+
     # Check if there is a genkey value yet
     if [ -n "$NULLGENKEY" ]; then
       # Write the masternode config section only after a genkey value is present
       echo "masternode=1"
-      echo "masternodeaddr=${CONFIG_ADDRESS}"    
+      echo "masternodeaddr=${CONFIG_ADDRESS}"
       echo "masternodeprivkey=$NULLGENKEY"
     fi
   } > ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME}
@@ -460,12 +460,12 @@ online_wallet_check() {
 
   if [ "${ARCHIVE_DIR_TEMPLATE}" != "" ]; then
     TEMP_WALLET_VERSION="${WALLET_VERSION}"
-    
+
     if [ $(count_occurances "${TEMP_WALLET_VERSION}" "\.") -eq 3 ]; then
       # Remove the last version number as it isn't being used in the wallet build currently
       TEMP_WALLET_VERSION="${TEMP_WALLET_VERSION%\.*}"
     fi
-    
+
     # Set the archive directory based on the template
     ARCHIVE_DIR=$({ str_replace "$({ str_replace "${ARCHIVE_DIR_TEMPLATE}" "\${WALLET_PREFIX}" "${WALLET_PREFIX}"; })" "\${WALLET_VERSION}" "${TEMP_WALLET_VERSION}"; });
   fi
@@ -516,10 +516,10 @@ stop_all() {
         WALLET_CLOSED=1
       fi
     fi
-    
+
     i=$(( i + 1 ))
   done
-  
+
   # Check if any wallets were closed
   if [ $WALLET_CLOSED -eq 1 ]; then
     echo "${GREEN}#####${NONE} All wallets have been shut down ${GREEN}#####${NONE}"
@@ -534,7 +534,7 @@ remove_rc_local() {
   # Check if the rc.local file exists
   if [ -f ${RC_LOCAL} ]; then
     # Remove the reboot script line for the current wallet from the rc.local file
-    grep -v "${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME}" ${RC_LOCAL} > ${RC_LOCAL}.new; mv ${RC_LOCAL}.new ${RC_LOCAL} 
+    grep -v "${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME}" ${RC_LOCAL} > ${RC_LOCAL}.new; mv ${RC_LOCAL}.new ${RC_LOCAL}
   fi
 }
 
@@ -557,11 +557,11 @@ if ! contains "Ubuntu" "$LINUX_VERSION" && ! contains "Debian" "$LINUX_VERSION";
   echo "This script has been designed to run on ${GREEN}Ubuntu 16.04+${NONE} and ${GREEN}Debian 8.x+${NONE}."
   echo "Would you like to continue installing anyway? [y/n]: ";
   read -p "" INSTALL_ANSWER
-  
-    case "$INSTALL_ANSWER" in
-        y|Y|yes|Yes|YES) ;;
-        *) exit ;;
-    esac
+
+  case "$INSTALL_ANSWER" in
+    y|Y|yes|Yes|YES) ;;
+    *) exit ;;
+  esac
 fi
 
 # Fix the current user and home directory variables in the event that $SUDO_USER is blank (installing as root)
@@ -885,7 +885,7 @@ if [ ${VERSION_LENGTH} -gt 0 ] && [ ${VERSION_LENGTH} -lt 10 ]; then
         esac
         if [ -n "$NULLGENKEY" ]; then
           NULLGENKEY=" -g ${NULLGENKEY}"
-        fi      
+        fi
         if [ -n "$WAN_IP" ]; then
           WAN_IP=" -i ${WAN_IP}"
         fi
@@ -1328,7 +1328,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
   rm -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d"
   rm -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli"
 
-  # Wallet setup  
+  # Wallet setup
   echo "${CYAN}#####${NONE} Wallet setup ${CYAN}#####${NONE}" && echo
 
   # Create a small file in the wallet directory to be used for remembering the network interface used for this node
