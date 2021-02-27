@@ -28,6 +28,7 @@ readonly IP4_CONFIG_NAME=".ip4.conf"
 readonly IP6_CONFIG_NAME=".ip6.conf"
 readonly NET_INTERFACE_CONFIG_NAME=".net.conf"
 readonly REBOOT_SCRIPT_NAME=".reboot.sh"
+readonly SHUTDOWN_SCRIPT_NAME=".shutdown.sh"
 readonly WALLET_FILE_TEMPLATE="\${WALLET_PREFIX}-\${WALLET_VERSION}-x86_64-linux-gnu.tar.gz"
 readonly WALLET_PREFIX="exor"
 readonly PEER_DATA_CMD="getconnectioncount"
@@ -44,6 +45,7 @@ readonly ULINE="\033[4m"
 readonly RC_LOCAL="/etc/rc.local" # TODO: Remove this line in the near future
 readonly NETWORK_BASE_TAG="5123"
 readonly HOME_DIR="/usr/local/bin"
+readonly SERVICE_DIR="/etc/systemd/system"
 readonly VERSION_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/VERSION"
 readonly SCRIPT_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/exor-mn-installer.sh"
 readonly NEW_CHANGES_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/NEW_CHANGES"
@@ -538,6 +540,14 @@ remove_rc_local() {
 
 add_cron_job() {
   crontab -l | { cat; echo "@reboot sleep 30; ${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME} "\""${CURRENT_USER}"\"" & # AUTOMATICALLY ADDED VIA exor-mn-installer.sh DO NOT REMOVE OR CHANGE MANUALLY"; } | crontab -
+}
+
+get_shutdown_service_filename() {
+  if [ "$INSTALL_NUM" -eq 1 ]; then
+    echo "${WALLET_PREFIX}_shutdown"
+  else
+    echo "${WALLET_PREFIX}${INSTALL_NUM}_shutdown"
+  fi
 }
 
 # Check linux distribution
@@ -1370,6 +1380,41 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
     echo 'execute_command "'"${HOME_DIR}"'/'"${WALLET_INSTALL_DIR}"'/'"${WALLET_PREFIX}"'d -datadir='"${USER_HOME_DIR}"'/'"${DATA_INSTALL_DIR}"'"'
   } > ${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME}
 
+  # Create a small script that will be used to auto-stop the wallet on shutdown or reboot to help prevent blockchain corruption
+  {
+    echo "#!/bin/sh"
+    echo 'readonly CURRENT_USER="'"${CURRENT_USER}"'"'
+    echo 'readonly USER_HOME_DIR="$(awk -F: -v v="${CURRENT_USER}" '"'"'{if ($1==v) print $6}'"'"' /etc/passwd)"'
+    echo
+    echo 'readonly WALLET_PREFIX="'"${WALLET_PREFIX}"'"'
+    echo 'readonly DEFAULT_WALLET_DIR="'"${DEFAULT_WALLET_DIR}"'"'
+    echo 'readonly DEFAULT_DATA_DIR="'"${DEFAULT_DATA_DIR}"'"'
+    echo 'readonly HOME_DIR="'"${HOME_DIR}"'"'
+    echo 'readonly INSTALL_NUM="'"${INSTALL_NUM}"'"'
+    echo
+    echo 'if [ "${INSTALL_NUM}" -eq 1 ]; then'
+    echo '  WALLET_DIR="${DEFAULT_WALLET_DIR}"'
+    echo '  DATA_DIR="${DEFAULT_DATA_DIR}"'
+    echo "else"
+    echo '  WALLET_DIR="${DEFAULT_WALLET_DIR}${INSTALL_NUM}"'
+    echo '  DATA_DIR="${DEFAULT_DATA_DIR}${INSTALL_NUM}"'
+    echo "fi"
+    echo
+    echo 'if [ -d "${HOME_DIR}/${WALLET_DIR}" ]; then'
+    echo '  if [ -f "${HOME_DIR}/${WALLET_DIR}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_DIR}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then'
+    echo '    if [ -f "${HOME_DIR}/${WALLET_DIR}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_DIR}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then'
+    echo '      ${HOME_DIR}/${WALLET_DIR}/${WALLET_PREFIX}-cli -datadir=${USER_HOME_DIR}/${DATA_DIR} stop >/dev/null 2>&1'
+    echo
+    echo '      while [ -f "${HOME_DIR}/${WALLET_DIR}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_DIR}/${WALLET_PREFIX}d" 2> /dev/null)" ]'
+    echo "      do"
+    echo "        sleep 1 &"
+    echo "        wait"
+    echo "      done"
+    echo "    fi"
+    echo "  fi"
+    echo "fi"
+  } > ${HOME_DIR}/${WALLET_INSTALL_DIR}/${SHUTDOWN_SCRIPT_NAME}
+
   if [ ! -f ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${WALLET_CONFIG_NAME} ]; then
     # This is a new install
     # Add a new crontab entry for the root user to ensure that the wallet automatically starts up after reboot
@@ -1385,6 +1430,32 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
       # Add a new crontab entry for the root user to ensure that the wallet automatically starts up after reboot
       add_cron_job
     fi
+  fi
+
+  # Get the shutdown service filename
+  SHUTDOWN_SERVICE_FILE="$(get_shutdown_service_filename)"
+
+  # Check if shutdown service is already installed for this wallet
+  if [ -z "$({ systemctl list-units --all --type=service --no-pager | grep "${SHUTDOWN_SERVICE_FILE}.service"; })" ]; then
+    # Create the service file that will be used to auto-stop the wallet on shutdown or reboot to help prevent blockchain corruption
+    {
+      echo "[Unit]"
+      echo "Description=Stop and wait for a ${WALLET_PREFIX} wallet to close before shutdown/restart"
+      echo
+      echo "[Service]"
+      echo "Type=oneshot"
+      echo "RemainAfterExit=true"
+      echo "ExecStart=/bin/true"
+      echo "ExecStop=${HOME_DIR}/${WALLET_INSTALL_DIR}/${SHUTDOWN_SCRIPT_NAME}"
+      echo
+      echo "[Install]"
+      echo "WantedBy=multi-user.target"
+    } > "${SERVICE_DIR}/${SHUTDOWN_SERVICE_FILE}.service"
+
+    # Enable the shutdown service
+    systemctl enable ${SHUTDOWN_SERVICE_FILE} >/dev/null 2>&1
+    # Start the shutdown service
+    systemctl start ${SHUTDOWN_SERVICE_FILE} >/dev/null 2>&1
   fi
 
   if [ "${ARCHIVE_DIR}" != "" ] && [ -d "${USER_HOME_DIR}/${ARCHIVE_DIR}" ]; then
@@ -1412,6 +1483,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
   chmod +x ${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d
   chmod +x ${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli
   chmod +x ${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME}
+  chmod +x ${HOME_DIR}/${WALLET_INSTALL_DIR}/${SHUTDOWN_SCRIPT_NAME}
 
   if [ "$WALLET_BASE_DIR" = "${HOME_DIR}" ]; then
     # Save a copy of the downloaded wallet into the current install directory
@@ -1697,6 +1769,18 @@ else
   remove_rc_local
   # Remove the reboot script for this wallet from the crontab
   ( crontab -l | grep -v -F "@reboot sleep 30; ${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME}" ) | crontab -
+  # Get the shutdown service filename
+  SHUTDOWN_SERVICE_FILE="$(get_shutdown_service_filename)"
+  # Stop the shutdown service for this wallet
+  systemctl stop ${SHUTDOWN_SERVICE_FILE} >/dev/null 2>&1
+  # Disable the shutdown service for this wallet
+  systemctl disable ${SHUTDOWN_SERVICE_FILE} >/dev/null 2>&1
+  # Remove the shutdown service file from systemd
+  rm -f "${SERVICE_DIR}/${SHUTDOWN_SERVICE_FILE}.service"
+  # Soft reload the systemd configuration to pick up the new service changes
+  systemctl daemon-reload
+  # The final step of removing the shutdown service is to clear out any error state that may have resulted from removal of the service
+  systemctl reset-failed
   # Remove old links to wallet binaries
   removeWalletLinks
   # Remove the wallet and data directories

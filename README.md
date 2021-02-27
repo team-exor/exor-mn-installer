@@ -23,6 +23,7 @@ To save time on 2+ installs, the wallet binaries are archived in the wallet dire
 - Install wallet from compiled binary files or build from source code
 - Faster syncing times for 2+ installs by copying previously installed blockchain files over to new installs
 - Automatic restart of installed masternodes after reboot
+- Stop all masternodes automatically when a reboot or shutdown command is issued to help prevent blockchain corruption
 - Install additional setup components such as swap disk file, firewall configuration and brute-force protection
 - Automatic generation of genkey value provides heightened security with less user interaction
 - Visualize the blockchain sync process after installation to ensure wallet(s) are all caught up with current block counts
