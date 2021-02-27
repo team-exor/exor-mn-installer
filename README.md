@@ -29,13 +29,6 @@ To save time on 2+ installs, the wallet binaries are archived in the wallet dire
 - Visualize the blockchain sync process after installation to ensure wallet(s) are all caught up with current block counts
 - Custom ascii art Exor logo
 
-## Future Features/Known Issues
-
-- Updating a previously installed wallet needs to remove previous settings before applying new settings
-- Updating a previously installed wallet needs to be smart enough to get the current configuration values instead of using 'new install' defaults
-- Properly shutdown all wallets automatically when a reboot or shutdown command is issued to prevent blockchain corruption
-- Automatically remove firewall rules for port(s) that pertain to a specific wallet install when the wallet is uninstalled
-
 ## Recomended Installation Instructions
 
 To begin, you must first download the initial script and give it execute permission with the following 2 commands:
