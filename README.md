@@ -2,8 +2,6 @@
 
 ### v1.1.0
 
-## General Information
-
 A custom masternode install script made from scratch specifically for installing Exor masternodes.
 
 Currently, it supports installation on Ubuntu 16.04+ and Debian 8.x+ x64 and should be generic enough to work on any VPS provider or as a local installation at home.
@@ -13,6 +11,15 @@ Since this script has the potential to install "extra" software components such 
 All wallets are installed to the /usr/local/bin directory.
 
 To save time on 2+ installs, the wallet binaries are archived in the wallet directory (typically /usr/local/bin/Exor) after the first successful install and those locally stored files are then used to install subsequent wallet installs in much less time than the first.
+
+## Table of Contents
+
+- [Features](#features)
+- [Install Instructions](#install-instructions)
+- [Update Instructions](#update-instructions)
+- [Command-Line Options](#command-line-options)
+- [Uninstall Instructions](#uninstall-instructions)
+- [Useful Commands](#useful-commands)
 
 ## Features
 
@@ -29,13 +36,13 @@ To save time on 2+ installs, the wallet binaries are archived in the wallet dire
 - Visualize the blockchain sync process after installation to ensure wallet(s) are all caught up with current block counts
 - Custom ascii art Exor logo
 
-## Recomended Installation Instructions
+## Install Instructions
 
-To begin, you must first download the initial script and give it execute permission with the following 2 commands:
+To begin, you must first download the initial script and give it execute permission with the following command:
 
-`wget https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/exor-mn-installer.sh`
-
-`sudo chmod +x exor-mn-installer.sh`
+```
+wget https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/exor-mn-installer.sh && chmod +x exor-mn-installer.sh
+```
 
 #### Install 1st/default wallet using IPv6:
 
@@ -49,24 +56,28 @@ sudo sh exor-mn-installer.sh
 sudo sh exor-mn-installer.sh -N 4
 ```
 
-#### Install 2nd wallet using IPv6 (not required, but also skip the disk swap file setup and brute-force protection setup since those only need to be installed once):
+#### Install 2nd wallet using IPv6:
 
 ```
-sudo sh exor-mn-installer.sh -n 2 -s -b
+sudo sh exor-mn-installer.sh -n 2
 ```
 
-#### Install 2nd wallet using IPv4 (a 2nd ip address needs to be specified if you have purchased more than 1 IPv4 ip address) (not required, but also skip the disk swap file setup and brute-force protection setup since those only need to be installed once):
+#### Install 2nd wallet using IPv4:
+
+**NOTE:** You cannot install more than one IPv4 wallet on the same IPv4 address. Assuming you have purchased more than one IPv4 IP address, you will need to explicitly specify the 2nd IP address using the `-i <ip address>` argument
+
+Example:
 
 ```
-sudo sh exor-mn-installer.sh -n 2 -N 4 -i 45.32.168.34 -s -b
+sudo sh exor-mn-installer.sh -n 2 -N 4 -i 45.32.168.34
 ```
 
-**NOTE:** Installing the 3rd, 4th, 5th, etc wallets are identical to the 2nd wallet except that you would change the -n value to 3, 4, 5, etc
+**NOTE:** Installing the 3rd, 4th, 5th, etc wallets are identical to the 2nd wallet except that you would change the `-n` value to 3, 4, 5, etc
 
 ```
-sudo sh exor-mn-installer.sh -n 3 -s -b
-sudo sh exor-mn-installer.sh -n 4 -s -b
-sudo sh exor-mn-installer.sh -n 5 -s -b
+sudo sh exor-mn-installer.sh -n 3
+sudo sh exor-mn-installer.sh -n 4
+sudo sh exor-mn-installer.sh -n 5
 ```
 
 **NOTE:** If you are installing multiple wallets, they do not need to be installed in any specific order although it is generally easier to install in numerical sequence (install 1 then 2 then 3, etc).
@@ -83,9 +94,9 @@ If you would like to keep your wallet installed but just change one of the optio
 
 `sudo sh exor-mn-installer.sh -N 4`
 
-This would allow you to change an IPv6 installed wallet into an IPv4 wallet. **NOTE:** Changing options like this will most likely require you to reconfigure your cold wallet exor.conf and masternode.conf files. The 'Final setup instructions' are always displayed at the end of an update install the same way as they are for the initial install.
+This would allow you to change an IPv6 installed wallet into an IPv4 wallet. **NOTE:** Changing options like this will most likely require you to reconfigure your controller wallet exor.conf and masternode.conf files. The 'Final setup instructions' are always displayed at the end of an update install the same way as they are for the initial install.
 
-## Available Command-Line Options
+## Command-Line Options
 
 - -h or --help
 
@@ -169,7 +180,7 @@ This would allow you to change an IPv6 installed wallet into an IPv4 wallet. **N
      
      Usage Example: `sudo sh exor-mn-installer.sh -S`
 
-## Uninstallation Instructions
+## Uninstall Instructions
 
 #### Uninstall 1st/default wallet:
 
@@ -195,7 +206,7 @@ sudo sh exor-mn-installer.sh -t u -n 5
 
 ## Useful Commands
 
-**NOTE:** To manually run commands (such as starting the wallet or running the '`stop`' or '`getmasternodestatus`' commands) on one of the 2+ installs you must reference the correct data directory.
+**NOTE:** To manually run commands (such as starting the wallet or running the `stop` or `getmasternodestatus` commands) on one of the 2+ installs you must reference the correct data directory.
 
 #### Stop the 1st/default wallet:
 
