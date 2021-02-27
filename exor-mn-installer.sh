@@ -471,6 +471,31 @@ online_wallet_check() {
   fi
 }
 
+unregisterIPAddress() {
+  # Dynamically populate the config name based on the argument passed to the function
+  IP_CONFIG_NAME="$(eval echo \$IP${1}_CONFIG_NAME)"
+
+  # Check if the config file exists
+  if [ -f ${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP_CONFIG_NAME} ]; then
+    # Check if the node was previously bound to a specific network interface
+    if [ -f ${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME} ]; then
+      # Remember the old network interface name
+      OLD_NET_INTERFACE="$(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME}")"
+    else
+      # Use the current network interface
+      OLD_NET_INTERFACE="${NET_INTERFACE}"
+    fi
+
+    # Unregister previous IP address
+     eval "unregisterIP${1}Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP_CONFIG_NAME}") "${OLD_NET_INTERFACE}""
+    # Remove the config file
+    rm -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP_CONFIG_NAME}"
+  fi
+
+  # Destroy the IP_CONFIG_NAME variable as it is no longer needed
+  unset -v IP_CONFIG_NAME
+}
+
 unregisterIP4Address() {
   ip -4 addr del "${1}/23" dev ${2} >/dev/null 2>&1
 }
@@ -1099,39 +1124,10 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
     mkdir "${HOME_DIR}/${WALLET_INSTALL_DIR}"
   fi
 
-  # Check if the node was previously bound to an IPv4 address
-  if [ -f ${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME} ]; then
-    # Check if the node was previously bound to a specific network interface
-    if [ -f ${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME} ]; then
-      # Remember the old network interface name
-      OLD_NET_INTERFACE="$(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME}")"
-    else
-      # Use the current network interface
-      OLD_NET_INTERFACE="${NET_INTERFACE}"
-    fi
-
-    # Unregister previous ip address
-    unregisterIP4Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME}") "${OLD_NET_INTERFACE}"
-    # Remove the IPv4 config file
-    rm -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP4_CONFIG_NAME}"
-  fi
-
-  # Check if the node was previously bound to an IPv6 address
-  if [ -f ${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME} ]; then
-    # Check if the node was previously bound to a specific network interface
-    if [ -f ${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME} ]; then
-      # Remember the old network interface name
-      OLD_NET_INTERFACE="$(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${NET_INTERFACE_CONFIG_NAME}")"
-    else
-      # Use the current network interface
-      OLD_NET_INTERFACE="${NET_INTERFACE}"
-    fi
-
-    # Unregister previous ip address
-    unregisterIP6Address $(cat "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME}") "${OLD_NET_INTERFACE}"
-    # Remove the IPv6 config file
-    rm -f "${HOME_DIR}/${WALLET_INSTALL_DIR}/${IP6_CONFIG_NAME}"
-  fi
+  # Attempt to unregister an old IP4 address
+  unregisterIPAddress "4"
+  # Attempt to unregister an old IP6 address
+  unregisterIPAddress "6"
 
   if [ "$NET_TYPE" -eq 4 ]; then
     # IPv4 address setup
