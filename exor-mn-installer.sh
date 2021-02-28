@@ -499,13 +499,8 @@ unregisterIP6Address() {
 }
 
 removeWalletLinks() {
-  if [ "$INSTALL_NUM" -eq 1 ]; then
-    rm -f "${HOME_DIR}/${WALLET_PREFIX}d"
-    rm -f "${HOME_DIR}/${WALLET_PREFIX}-cli"
-  else
-    rm -f "${HOME_DIR}/${WALLET_PREFIX}d${INSTALL_NUM}"
-    rm -f "${HOME_DIR}/${WALLET_PREFIX}-cli${INSTALL_NUM}"
-  fi
+  rm -f "${HOME_DIR}/${WALLET_PREFIX}d${INSTALL_SUFFIX}"
+  rm -f "${HOME_DIR}/${WALLET_PREFIX}-cli${INSTALL_SUFFIX}"
 }
 
 stop_all() {
@@ -562,11 +557,7 @@ add_cron_job() {
 }
 
 get_shutdown_service_filename() {
-  if [ "$INSTALL_NUM" -eq 1 ]; then
-    echo "${WALLET_PREFIX}_shutdown"
-  else
-    echo "${WALLET_PREFIX}${INSTALL_NUM}_shutdown"
-  fi
+  echo "${WALLET_PREFIX}${INSTALL_SUFFIX}_shutdown"
 }
 
 # Check linux distribution
@@ -765,14 +756,18 @@ if [ -n "$UPDATE_INDEX" ] && [ ${UPDATE_INDEX} -ne 0 ]; then
   fi
 fi
 
-# Set install directories
+# Set install suffix
 if [ "$INSTALL_NUM" -eq 1 ]; then
-  DATA_INSTALL_DIR="${DEFAULT_DATA_DIR}"
-  WALLET_INSTALL_DIR="${DEFAULT_WALLET_DIR}"
+  # 1st/default wallet has no suffix
+  INSTALL_SUFFIX=""
 else
-  DATA_INSTALL_DIR="${DEFAULT_DATA_DIR}${INSTALL_NUM}"
-  WALLET_INSTALL_DIR="${DEFAULT_WALLET_DIR}${INSTALL_NUM}"
+  # All other wallets have a suffix of the Install #
+  INSTALL_SUFFIX="${INSTALL_NUM}"
 fi
+
+# Set install directories
+DATA_INSTALL_DIR="${DEFAULT_DATA_DIR}${INSTALL_SUFFIX}"
+WALLET_INSTALL_DIR="${DEFAULT_WALLET_DIR}${INSTALL_SUFFIX}"
 
 # Validate command line arguments
 if [ -n "${INITIAL_NET_TYPE}" ]; then
@@ -1487,18 +1482,9 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
     echo 'readonly USER_HOME_DIR="$(awk -F: -v v="${CURRENT_USER}" '"'"'{if ($1==v) print $6}'"'"' /etc/passwd)"'
     echo
     echo 'readonly WALLET_PREFIX="'"${WALLET_PREFIX}"'"'
-    echo 'readonly DEFAULT_WALLET_DIR="'"${DEFAULT_WALLET_DIR}"'"'
-    echo 'readonly DEFAULT_DATA_DIR="'"${DEFAULT_DATA_DIR}"'"'
+    echo 'readonly WALLET_DIR="'"${DEFAULT_WALLET_DIR}${INSTALL_SUFFIX}"'"'
+    echo 'readonly DATA_DIR="'"${DEFAULT_DATA_DIR}${INSTALL_SUFFIX}"'"'
     echo 'readonly HOME_DIR="'"${HOME_DIR}"'"'
-    echo 'readonly INSTALL_NUM="'"${INSTALL_NUM}"'"'
-    echo
-    echo 'if [ "${INSTALL_NUM}" -eq 1 ]; then'
-    echo '  WALLET_DIR="${DEFAULT_WALLET_DIR}"'
-    echo '  DATA_DIR="${DEFAULT_DATA_DIR}"'
-    echo "else"
-    echo '  WALLET_DIR="${DEFAULT_WALLET_DIR}${INSTALL_NUM}"'
-    echo '  DATA_DIR="${DEFAULT_DATA_DIR}${INSTALL_NUM}"'
-    echo "fi"
     echo
     echo 'if [ -d "${HOME_DIR}/${WALLET_DIR}" ]; then'
     echo '  if [ -f "${HOME_DIR}/${WALLET_DIR}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_DIR}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then'
@@ -1571,13 +1557,8 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
   fi
 
   # Create easier links to the wallet files
-  if [ "$INSTALL_NUM" -eq 1 ]; then
-    ln -s ${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d ${HOME_DIR}/${WALLET_PREFIX}d
-    ln -s ${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli ${HOME_DIR}/${WALLET_PREFIX}-cli
-  else
-    ln -s ${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d ${HOME_DIR}/${WALLET_PREFIX}d${INSTALL_NUM}
-    ln -s ${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli ${HOME_DIR}/${WALLET_PREFIX}-cli${INSTALL_NUM}
-  fi
+  ln -s ${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d ${HOME_DIR}/${WALLET_PREFIX}d${INSTALL_SUFFIX}
+  ln -s ${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli ${HOME_DIR}/${WALLET_PREFIX}-cli${INSTALL_SUFFIX}
 
   # Mark wallet files and scripts as executable
   chmod +x ${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d
