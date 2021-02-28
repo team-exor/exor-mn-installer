@@ -46,6 +46,7 @@ readonly RC_LOCAL="/etc/rc.local" # TODO: Remove this line in the near future
 readonly NETWORK_BASE_TAG="5123"
 readonly HOME_DIR="/usr/local/bin"
 readonly SERVICE_DIR="/etc/systemd/system"
+readonly TEMP_UPDATE_CONFIG_PATH="/tmp/exor-mn-update.conf"
 readonly VERSION_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/VERSION"
 readonly SCRIPT_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/exor-mn-installer.sh"
 readonly NEW_CHANGES_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/NEW_CHANGES"
@@ -67,6 +68,7 @@ WAIT_TIMEOUT=5
 DATA_INSTALL_DIR=""
 WALLET_INSTALL_DIR=""
 NET_INTERFACE=""
+UPDATE_INDEX=0
 WRITE_IP4_CONF=0
 WRITE_IP6_CONF=0
 ARCHIVE_DIR=""
@@ -79,8 +81,12 @@ error_message() {
 }
 
 welcome_screen() {
-  clear
-  echo "${WELCOME_MSG}"
+  # Check if running an updateall install
+  if [ -z "${UPDATE_INDEX}" ] || [ ${UPDATE_INDEX} -eq 0 ] || [ ${UPDATE_INDEX} -eq 1 ]; then
+    # Not an updateall install or it is the first updateall install
+    clear
+    echo "${WELCOME_MSG}"
+  fi
 }
 
 help_menu() {
@@ -145,6 +151,9 @@ help_menu() {
   echo "  -S, --stopall"
   echo "            shutdown all wallets controlled by this script and wait for all to"
   echo "            finish shutting down before continuing"
+  echo "  -U, --updateall"
+  echo "            update all wallets controlled by this script one at a time until all"
+  echo "            are complete"
 }
 
 begins_with() { case $2 in "$1"*) true;; *) false;; esac; }
@@ -454,21 +463,6 @@ online_wallet_check() {
     # Only one release so there cannot be an updated version
     echo "No new update found"
   fi
-
-  # Set the wallet archive filename based on the template
-  WALLET_FILE=$({ str_replace "$({ str_replace "${WALLET_FILE_TEMPLATE}" "\${WALLET_PREFIX}" "${WALLET_PREFIX}"; })" "\${WALLET_VERSION}" "${WALLET_VERSION}"; });
-
-  if [ "${ARCHIVE_DIR_TEMPLATE}" != "" ]; then
-    TEMP_WALLET_VERSION="${WALLET_VERSION}"
-
-    if [ $(count_occurances "${TEMP_WALLET_VERSION}" "\.") -eq 3 ]; then
-      # Remove the last version number as it isn't being used in the wallet build currently
-      TEMP_WALLET_VERSION="${TEMP_WALLET_VERSION%\.*}"
-    fi
-
-    # Set the archive directory based on the template
-    ARCHIVE_DIR=$({ str_replace "$({ str_replace "${ARCHIVE_DIR_TEMPLATE}" "\${WALLET_PREFIX}" "${WALLET_PREFIX}"; })" "\${WALLET_VERSION}" "${TEMP_WALLET_VERSION}"; });
-  fi
 }
 
 unregisterIPAddress() {
@@ -596,7 +590,7 @@ if [ -z "${CURRENT_USER}" ]; then
 fi
 
 # Read command line arguments
-if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:a:sfbcuS" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,adapter:,noswap,nofirewall,nobruteprotect,nochainsync,noosupgrade,stopall" -n "${0##*/}" -- "$@"); then
+if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:a:sfbcuSU" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,adapter:,noswap,nofirewall,nobruteprotect,nochainsync,noosupgrade,stopall,updateall" -n "${0##*/}" -- "$@"); then
   # invalid command line arguments so show help menu
   help_menu
   exit;
@@ -692,6 +686,19 @@ while true; do
       stop_all;
       exit
       ;;
+    -U|--updateall)
+      shift;
+      # Check if the temp update config file exists
+      if [ -f ${TEMP_UPDATE_CONFIG_PATH} ]; then
+        # Read the contents of the config file
+        UPDATE_INDEX=$(cat "${TEMP_UPDATE_CONFIG_PATH}")
+        # Delete the temp update config file
+        rm -f "${TEMP_UPDATE_CONFIG_PATH}"
+      else
+        # Config file not found, so start with index 1
+        UPDATE_INDEX=1
+      fi
+      ;;
     --)
       shift;
       break;
@@ -706,6 +713,58 @@ fi
 
 # Ensure commands are executed from the users home directory
 eval "cd ${USER_HOME_DIR}"
+
+# Check and fix updateall install argument if necessary
+if [ -n "$UPDATE_INDEX" ] && [ ${UPDATE_INDEX} -ne 0 ] && [ -n "$(validate_install_num $UPDATE_INDEX)" ]; then
+  # Invalid update index specified, but do not stop. Instead, continue with install #1
+  UPDATE_INDEX=1
+fi
+
+# Check if running an updateall install
+if [ -n "$UPDATE_INDEX" ] && [ ${UPDATE_INDEX} -ne 0 ]; then
+  # Find the next installed wallet, starting from the update index
+  i=${UPDATE_INDEX}; while [ $i -le 99 ]; do
+    case $i in
+      1) DIR_TEST="${DEFAULT_WALLET_DIR}" ;;
+      *) DIR_TEST="${DEFAULT_WALLET_DIR}${i}" ;;
+    esac
+
+    if [ -d "${HOME_DIR}/${DIR_TEST}" ]; then
+      # Set the update index
+      UPDATE_INDEX=${i}
+      # Return from loop
+      break
+    fi
+
+    i=$(( i + 1 ))
+  done
+
+  # Check if a wallet install was found
+  if [ ${i} -gt 99 ]; then
+    # No wallets found
+    echo && error_message "No installed wallets found"
+  else
+    # Update the install number based on the update index
+    INSTALL_NUM="${UPDATE_INDEX}"
+    # Check if this is the 1st/default wallet
+    if [ ${UPDATE_INDEX} -eq 1 ]; then
+      # Always do an os upgrade on the 1st/default wallet update
+      OSUPGRADE=1
+    else
+      # Skip o/s upgrade for all other wallet updates
+      OSUPGRADE=0
+    fi
+    # Prevent from re-creating the swap file
+    SWAP=0
+    # Prevent from re-installing the firewall
+    FIREWALL=0
+    # Prevent from re-installing brute-force protection
+    FAIL2BAN=0
+    # Prevent from waiting for the chain to fully sync
+    SYNCCHAIN=0
+  fi
+fi
+
 # Set install directories
 if [ "$INSTALL_NUM" -eq 1 ]; then
   DATA_INSTALL_DIR="${DEFAULT_DATA_DIR}"
@@ -851,14 +910,36 @@ fi
 readonly CURRENT_USER_ID=$(execute_command "id -ur")
 # Welcome
 welcome_screen
-echo && echo "${GREY}///////////////////////////////////////////////////////${NONE}"
-# Center-align the title
-i=1; while [ "$i" -le "$(((55-$(printf "%s" "${TITLE_STRING}" | wc -m))/2))" ]; do
-  echo -n " "
-  i=$(($i+1))
-done
-echo -n "${TITLE_STRING}"
-echo && echo "${GREY}///////////////////////////////////////////////////////${NONE}"
+# Check if running an updateall install
+if [ -z "${UPDATE_INDEX}" ] || [ ${UPDATE_INDEX} -eq 0 ]; then
+  # Not an updateall install
+  # Show default install title
+  echo && echo "${GREY}///////////////////////////////////////////////////////${NONE}"
+  # Center-align the title
+  i=1; while [ "$i" -le "$(((55-$(printf "%s" "${TITLE_STRING}" | wc -m))/2))" ]; do
+    echo -n " "
+    i=$(($i+1))
+  done
+  echo -n "${TITLE_STRING}"
+  echo && echo "${GREY}///////////////////////////////////////////////////////${NONE}"
+else
+  # This is an updateall install
+  # Check if this is the first/default wallet
+  if [ ${UPDATE_INDEX} -eq 1 ]; then
+    # Add an extra blank line
+    echo
+  fi
+  # Show updateall install title
+  NEW_TITLE_STRING="Update wallet #${UPDATE_INDEX}"
+  echo "${GREY}///////////////////////////////////////////////////////${NONE}"
+  # Center-align the title
+  i=1; while [ "$i" -le "$(((55-$(printf "%s" "${NEW_TITLE_STRING}" | wc -m))/2))" ]; do
+    echo -n " "
+    i=$(($i+1))
+  done
+  echo -n "${NEW_TITLE_STRING}"
+  echo && echo "${GREY}///////////////////////////////////////////////////////${NONE}"
+fi
 # Wait 2 seconds with the splash screen up before starting
 sleep 2 && echo
 # Check if curl is installed
@@ -866,100 +947,123 @@ if [ "$({ dpkg-query --show --showformat='${db:Status-Status}\n' 'curl'; })" = "
   # Install curl
   install_package "curl" "curl (required for script usage)"
 fi
-# Check for an updated version of the script
-echo "${CYAN}#####${NONE} Check for script update ${CYAN}#####${NONE}" && echo
-NEWEST_VERSION=$(curl -s -k "${VERSION_URL}?$(date +%s)")
-VERSION_LENGTH=$(printf "%s" "${NEWEST_VERSION}" | wc -m)
+# Check if running an updateall install
+if [ -z "${UPDATE_INDEX}" ] || [ ${UPDATE_INDEX} -eq 0 ] || [ ${UPDATE_INDEX} -eq 1 ]; then
+  # Check for an updated version of the script
+  echo "${CYAN}#####${NONE} Check for script update ${CYAN}#####${NONE}" && echo
+  NEWEST_VERSION=$(curl -s -k "${VERSION_URL}?$(date +%s)")
+  VERSION_LENGTH=$(printf "%s" "${NEWEST_VERSION}" | wc -m)
 
-if [ ${VERSION_LENGTH} -gt 0 ] && [ ${VERSION_LENGTH} -lt 10 ]; then
-  # Split current script version
-  TEMP_VERSION="${SCRIPT_VERSION}"
-  CURRENT_BUILD_VERSION=$({ echo "${TEMP_VERSION}" | awk -v FS="." '{ print $NF }'; })
-  TEMP_VERSION=$(echo "${TEMP_VERSION}" | cut -c1-`expr ${#TEMP_VERSION} - ${#CURRENT_BUILD_VERSION} - 1` | head -1)
-  CURRENT_MINOR_VERSION=$({ echo "${TEMP_VERSION}" | awk -v FS="." '{ print $NF }'; })
-  CURRENT_MAJOR_VERSION=$(echo "${TEMP_VERSION}" | cut -c1-`expr ${#TEMP_VERSION} - ${#CURRENT_MINOR_VERSION} - 1` | head -1)
-  # Split new script version
-  TEMP_VERSION="${NEWEST_VERSION}"
-  NEWEST_BUILD_VERSION=$({ echo "${TEMP_VERSION}" | awk -v FS="." '{ print $NF }'; })
-  TEMP_VERSION=$(echo "${TEMP_VERSION}" | cut -c1-`expr ${#TEMP_VERSION} - ${#NEWEST_BUILD_VERSION} - 1` | head -1)
-  NEWEST_MINOR_VERSION=$({ echo "${TEMP_VERSION}" | awk -v FS="." '{ print $NF }'; })
-  NEWEST_MAJOR_VERSION=$(echo "${TEMP_VERSION}" | cut -c1-`expr ${#TEMP_VERSION} - ${#NEWEST_MINOR_VERSION} - 1` | head -1)
+  if [ ${VERSION_LENGTH} -gt 0 ] && [ ${VERSION_LENGTH} -lt 10 ]; then
+    # Split current script version
+    TEMP_VERSION="${SCRIPT_VERSION}"
+    CURRENT_BUILD_VERSION=$({ echo "${TEMP_VERSION}" | awk -v FS="." '{ print $NF }'; })
+    TEMP_VERSION=$(echo "${TEMP_VERSION}" | cut -c1-`expr ${#TEMP_VERSION} - ${#CURRENT_BUILD_VERSION} - 1` | head -1)
+    CURRENT_MINOR_VERSION=$({ echo "${TEMP_VERSION}" | awk -v FS="." '{ print $NF }'; })
+    CURRENT_MAJOR_VERSION=$(echo "${TEMP_VERSION}" | cut -c1-`expr ${#TEMP_VERSION} - ${#CURRENT_MINOR_VERSION} - 1` | head -1)
+    # Split new script version
+    TEMP_VERSION="${NEWEST_VERSION}"
+    NEWEST_BUILD_VERSION=$({ echo "${TEMP_VERSION}" | awk -v FS="." '{ print $NF }'; })
+    TEMP_VERSION=$(echo "${TEMP_VERSION}" | cut -c1-`expr ${#TEMP_VERSION} - ${#NEWEST_BUILD_VERSION} - 1` | head -1)
+    NEWEST_MINOR_VERSION=$({ echo "${TEMP_VERSION}" | awk -v FS="." '{ print $NF }'; })
+    NEWEST_MAJOR_VERSION=$(echo "${TEMP_VERSION}" | cut -c1-`expr ${#TEMP_VERSION} - ${#NEWEST_MINOR_VERSION} - 1` | head -1)
 
-  if [ "${NEWEST_MAJOR_VERSION}" -gt "${CURRENT_MAJOR_VERSION}" ] || ([ "${NEWEST_MAJOR_VERSION}" -eq "${CURRENT_MAJOR_VERSION}" ] && ([ "${NEWEST_MINOR_VERSION}" -gt "${CURRENT_MINOR_VERSION}" ] || ([ "${NEWEST_MINOR_VERSION}" -eq "${CURRENT_MINOR_VERSION}" ] && [ "${NEWEST_BUILD_VERSION}" -gt "${CURRENT_BUILD_VERSION}" ]))); then
-    # A new version of the script is available
-    echo "${CYAN}Current script:${NONE}  v${SCRIPT_VERSION}"
-    echo "${CYAN}New script:${NONE}   v${NEWEST_VERSION}"
-    echo && echo "${CYAN}CHANGES:${NONE}"
-    echo "$(curl -s -k "${NEW_CHANGES_URL}?$(date +%s)")"
-    echo && echo -n "Would you like to update now? [y/n]: "
-    read -p "" UPDATE_NOW
-    case "$UPDATE_NOW" in
-      y|Y|yes|Yes|YES)
-        # Update to newest version of script
-        echo "Updating, please wait..."
-        # Overwrite the current script with the newest version
-        {
-          echo "$(curl -s -k "${SCRIPT_URL}?$(date +%s)")"
-        } > ${USER_HOME_DIR}/${0##*/}
-        # Ensure script is executable
-        chmod +x ${USER_HOME_DIR}/${0##*/}
-        # Fix parameters before restarting
-        case $INSTALL_TYPE in
-          "Install") INSTALL_TYPE="i" ;;
-          *) INSTALL_TYPE="u" ;;
-        esac
-        if [ -n "$NULLGENKEY" ]; then
-          NULLGENKEY=" -g ${NULLGENKEY}"
-        fi
-        if [ -n "$WAN_IP" ]; then
-          WAN_IP=" -i ${WAN_IP}"
-        fi
-        if [ -n "$PORT_NUMBER" ]; then
-          PORT_NUMBER=" -p ${PORT_NUMBER}"
-        fi
-        if [ -z "$NET_INTERFACE" ]; then
-          init_network
-        fi
-        NET_INTERFACE=" -a ${NET_INTERFACE}"
-        if [ "$SWAP" -eq 0 ]; then
-          SWAP=" -s"
-        else
-          SWAP=""
-        fi
-        if [ "$FIREWALL" -eq 0 ]; then
-          FIREWALL=" -f"
-        else
-          FIREWALL=""
-        fi
-        if [ "$FAIL2BAN" -eq 0 ]; then
-          FAIL2BAN=" -b"
-        else
-          FAIL2BAN=""
-        fi
-        if [ "$SYNCCHAIN" -eq 0 ]; then
-          SYNCCHAIN=" -c"
-        else
-          SYNCCHAIN=""
-        fi
-        if [ "$OSUPGRADE" -eq 0 ]; then
-          OSUPGRADE=" -u"
-        else
-          OSUPGRADE=""
-        fi
-        # Restart the newest version of the script
-        eval "sh ${USER_HOME_DIR}/${0##*/} -t ${INSTALL_TYPE} -w ${WALLET_TYPE}${NULLGENKEY} -N ${NET_TYPE}${WAN_IP}${PORT_NUMBER}${NET_INTERFACE} -n ${INSTALL_NUM}${SWAP}${FIREWALL}${FAIL2BAN}${SYNCCHAIN}${OSUPGRADE}"
-        exit
-        ;;
-    esac
+    if [ "${NEWEST_MAJOR_VERSION}" -gt "${CURRENT_MAJOR_VERSION}" ] || ([ "${NEWEST_MAJOR_VERSION}" -eq "${CURRENT_MAJOR_VERSION}" ] && ([ "${NEWEST_MINOR_VERSION}" -gt "${CURRENT_MINOR_VERSION}" ] || ([ "${NEWEST_MINOR_VERSION}" -eq "${CURRENT_MINOR_VERSION}" ] && [ "${NEWEST_BUILD_VERSION}" -gt "${CURRENT_BUILD_VERSION}" ]))); then
+      # A new version of the script is available
+      echo "${CYAN}Current script:${NONE}  v${SCRIPT_VERSION}"
+      echo "${CYAN}New script:${NONE}   v${NEWEST_VERSION}"
+      echo && echo "${CYAN}CHANGES:${NONE}"
+      echo "$(curl -s -k "${NEW_CHANGES_URL}?$(date +%s)")"
+      echo && echo -n "Would you like to update now? [y/n]: "
+      read -p "" UPDATE_NOW
+      case "$UPDATE_NOW" in
+        y|Y|yes|Yes|YES)
+          # Update to newest version of script
+          echo "Updating, please wait..."
+          # Overwrite the current script with the newest version
+          {
+            echo "$(curl -s -k "${SCRIPT_URL}?$(date +%s)")"
+          } > ${USER_HOME_DIR}/${0##*/}
+          # Ensure script is executable
+          chmod +x ${USER_HOME_DIR}/${0##*/}
+          # Fix parameters before restarting
+          case $INSTALL_TYPE in
+            "Install") INSTALL_TYPE="i" ;;
+            *) INSTALL_TYPE="u" ;;
+          esac
+          if [ -n "$NULLGENKEY" ]; then
+            NULLGENKEY=" -g ${NULLGENKEY}"
+          fi
+          if [ -n "$WAN_IP" ]; then
+            WAN_IP=" -i ${WAN_IP}"
+          fi
+          if [ -n "$PORT_NUMBER" ]; then
+            PORT_NUMBER=" -p ${PORT_NUMBER}"
+          fi
+          if [ -z "$NET_INTERFACE" ]; then
+            init_network
+          fi
+          NET_INTERFACE=" -a ${NET_INTERFACE}"
+          if [ "$SWAP" -eq 0 ]; then
+            SWAP=" -s"
+          else
+            SWAP=""
+          fi
+          if [ "$FIREWALL" -eq 0 ]; then
+            FIREWALL=" -f"
+          else
+            FIREWALL=""
+          fi
+          if [ "$FAIL2BAN" -eq 0 ]; then
+            FAIL2BAN=" -b"
+          else
+            FAIL2BAN=""
+          fi
+          if [ "$SYNCCHAIN" -eq 0 ]; then
+            SYNCCHAIN=" -c"
+          else
+            SYNCCHAIN=""
+          fi
+          if [ "$OSUPGRADE" -eq 0 ]; then
+            OSUPGRADE=" -u"
+          else
+            OSUPGRADE=""
+          fi
+          if [ -z "${UPDATE_INDEX}" ] || [ ${UPDATE_INDEX} -eq 0 ]; then
+            UPDATE_INDEX=""
+          else
+            UPDATE_INDEX=" -U"
+          fi
+          # Restart the newest version of the script
+          eval "sh ${USER_HOME_DIR}/${0##*/} -t ${INSTALL_TYPE} -w ${WALLET_TYPE}${NULLGENKEY} -N ${NET_TYPE}${WAN_IP}${PORT_NUMBER}${NET_INTERFACE} -n ${INSTALL_NUM}${SWAP}${FIREWALL}${FAIL2BAN}${SYNCCHAIN}${OSUPGRADE}${UPDATE_INDEX}"
+          exit
+          ;;
+      esac
+    else
+      echo "No new update found"
+    fi
   else
     echo "No new update found"
   fi
-else
-  echo "No new update found"
+
+  # Check online for the most recent wallet version
+  online_wallet_check && echo
 fi
 
-# Check online for the most recent wallet version
-online_wallet_check
+# Set the wallet archive filename based on the template
+WALLET_FILE=$({ str_replace "$({ str_replace "${WALLET_FILE_TEMPLATE}" "\${WALLET_PREFIX}" "${WALLET_PREFIX}"; })" "\${WALLET_VERSION}" "${WALLET_VERSION}"; });
+
+if [ "${ARCHIVE_DIR_TEMPLATE}" != "" ]; then
+  TEMP_WALLET_VERSION="${WALLET_VERSION}"
+
+  if [ $(count_occurances "${TEMP_WALLET_VERSION}" "\.") -eq 3 ]; then
+    # Remove the last version number as it isn't being used in the wallet build currently
+    TEMP_WALLET_VERSION="${TEMP_WALLET_VERSION%\.*}"
+  fi
+
+  # Set the archive directory based on the template
+  ARCHIVE_DIR=$({ str_replace "$({ str_replace "${ARCHIVE_DIR_TEMPLATE}" "\${WALLET_PREFIX}" "${WALLET_PREFIX}"; })" "\${WALLET_VERSION}" "${TEMP_WALLET_VERSION}"; });
+fi
 
 # Get IP Address (if not already specified via command line)
 if [ -z "$WAN_IP" ]; then
@@ -981,7 +1085,7 @@ if [ "$INSTALL_TYPE" = "Install" ] && [ "${WALLET_TYPE}" = "d" ] && [ -n "${WALL
   fi
 fi
 
-echo && echo "${ULINE}${CYAN}${INSTALL_TYPE} Settings:${NONE}" && echo
+echo "${ULINE}${CYAN}${INSTALL_TYPE} Settings:${NONE}" && echo
 
 if [ "$INSTALL_TYPE" = "Install" ]; then
   echo "${CYAN}New Wallet Version:${NONE}     v$WALLET_VERSION"
@@ -1806,3 +1910,35 @@ else
 fi
 
 echo && echo "${GREEN}#####${NONE} ${INSTALL_TYPE}ation complete ${GREEN}#####${NONE}" && echo
+
+# Check if this was an updateall install
+if [ -n "$UPDATE_INDEX" ] && [ ${UPDATE_INDEX} -ne 0 ]; then
+  # Check if there are any more wallets to update
+  i=$(( UPDATE_INDEX + 1 )); while [ $i -le 99 ]; do
+    case $i in
+      1) DIR_TEST="${DEFAULT_WALLET_DIR}" ;;
+      *) DIR_TEST="${DEFAULT_WALLET_DIR}${i}" ;;
+    esac
+
+    if [ -d "${HOME_DIR}/${DIR_TEST}" ]; then
+      # Set the update index
+      UPDATE_INDEX=${i}
+      # Return from loop
+      break
+    fi
+
+    i=$(( i + 1 ))
+  done
+
+  # Check if a new wallet install was found
+  if [ ${i} -le 99 ]; then
+    # Save the update index to the temp update config file
+    echo "${UPDATE_INDEX}" > ${TEMP_UPDATE_CONFIG_PATH}
+    # Restart the script to update the next wallet
+    eval "sh ${USER_HOME_DIR}/${0##*/} -U"
+    exit
+  else
+    # Finished updating all wallets
+    echo "${GREEN}#####${NONE} All installed wallets were updated successfully ${GREEN}#####${NONE}" && echo
+  fi
+fi

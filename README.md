@@ -84,6 +84,8 @@ sudo sh exor-mn-installer.sh -n 5
 
 ## Update Instructions
 
+#### Update Single Wallet Install
+
 At any point after the initial installation you can "refresh" a particular wallet install by re-running the following command:
 
 `sudo sh exor-mn-installer.sh`
@@ -95,6 +97,12 @@ If you would like to keep your wallet installed but just change one of the optio
 `sudo sh exor-mn-installer.sh -N 4`
 
 This would allow you to change an IPv6 installed wallet into an IPv4 wallet. **NOTE:** Changing options like this will most likely require you to reconfigure your controller wallet exor.conf and masternode.conf files. The 'Final setup instructions' are always displayed at the end of an update install the same way as they are for the initial install.
+
+#### Update All Wallet Installs
+
+To update all installed wallets with a single command, use the following:
+
+`sudo sh exor-mn-installer.sh -U`
 
 ## Command-Line Options
 
@@ -179,6 +187,11 @@ This would allow you to change an IPv6 installed wallet into an IPv4 wallet. **N
      Shutdown all wallets controlled by this script and wait for all to finish shutting down before continuing
      
      Usage Example: `sudo sh exor-mn-installer.sh -S`
+- -U or --updateall
+
+     Update all wallets controlled by this script one at a time until all are complete
+     
+     Usage Example: `sudo sh exor-mn-installer.sh -U`
 
 ## Uninstall Instructions
 
