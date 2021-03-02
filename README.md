@@ -219,86 +219,84 @@ sudo sh exor-mn-installer.sh -t u -n 5
 
 ## Useful Commands
 
-**NOTE:** To manually run commands (such as starting the wallet or running the `stop` or `getmasternodestatus` commands) on one of the 2+ installs you must reference the correct data directory.
-
 #### Stop the 1st/default wallet:
 
 ```
-exor-cli stop
+cexor stop
 ```
 
 #### Stop the 2nd wallet:
 
 ```
-exor-cli2 -datadir=$HOME/.exor2 stop
+cexor2 stop
 ```
 
 #### Stop the 3rd, 4th, 5th wallet:
 
 ```
-exor-cli3 -datadir=$HOME/.exor3 stop
-exor-cli4 -datadir=$HOME/.exor4 stop
-exor-cli5 -datadir=$HOME/.exor5 stop
+cexor3 stop
+cexor4 stop
+cexor5 stop
 ```
 
 #### Start the 1st/default wallet:
 
 ```
-exord
+dexor
 ```
 
 #### Start the 2nd wallet:
 
 ```
-exord2 -datadir=$HOME/.exor2
+dexor2
 ```
 
 #### Start the 3rd, 4th, 5th wallet:
 
 ```
-exord3 -datadir=$HOME/.exor3
-exord4 -datadir=$HOME/.exor4
-exord5 -datadir=$HOME/.exor5
+dexor3
+dexor4
+dexor5
 ```
 
 #### View the 1st/default wallets current block:
 
 ```
-exor-cli getblockcount
+cexor getblockcount
 ```
 
 #### View the 2nd wallets current block:
 
 ```
-exor-cli2 -datadir=$HOME/.exor2 getblockcount
+cexor2 getblockcount
 ```
 
 #### View the 3rd, 4th, 5th wallets current block:
 
 ```
-exor-cli3 -datadir=$HOME/.exor3 getblockcount
-exor-cli4 -datadir=$HOME/.exor4 getblockcount
-exor-cli5 -datadir=$HOME/.exor5 getblockcount
+cexor3 getblockcount
+cexor4 getblockcount
+cexor5 getblockcount
 ```
 
 #### Check masternode status for the 1st/default wallet:
 
 ```
-exor-cli getmasternodestatus
+cexor getmasternodestatus
 ```
 
 #### Check masternode status for the 2nd wallet:
 
 ```
-exor-cli2 -datadir=$HOME/.exor2 getmasternodestatus
+cexor2 getmasternodestatus
 ```
 
 #### Check masternode status for the 3rd, 4th, 5th wallets:
 
 ```
-exor-cli3 -datadir=$HOME/.exor3 getmasternodestatus
-exor-cli4 -datadir=$HOME/.exor4 getmasternodestatus
-exor-cli5 -datadir=$HOME/.exor5 getmasternodestatus
+cexor3 getmasternodestatus
+cexor4 getmasternodestatus
+cexor5 getmasternodestatus
 ```
 
 #### Shut down all running wallets:

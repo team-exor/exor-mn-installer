@@ -47,6 +47,8 @@ readonly NETWORK_BASE_TAG="5123"
 readonly HOME_DIR="/usr/local/bin"
 readonly SERVICE_DIR="/etc/systemd/system"
 readonly TEMP_UPDATE_CONFIG_PATH="/tmp/exor-mn-update.conf"
+readonly DAEMON_SCRIPT_PREFIX="d"
+readonly CLI_SCRIPT_PREFIX="c"
 readonly VERSION_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/VERSION"
 readonly SCRIPT_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/exor-mn-installer.sh"
 readonly NEW_CHANGES_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/NEW_CHANGES"
@@ -1518,6 +1520,20 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
     fi
   fi
 
+  # Create a small script that will be used to forward cmds to the wallet daemon app to make it easier to interact with the wallet outside of the install script
+  {
+    echo "#!/bin/bash"
+    echo 'BINARY_PATH="'${HOME_DIR}/${DEFAULT_WALLET_DIR}${INSTALL_SUFFIX}/${WALLET_PREFIX}d -datadir=${USER_HOME_DIR}/${DEFAULT_DATA_DIR}${INSTALL_SUFFIX}'"'
+    echo '${BINARY_PATH} "$@"'
+  } > ${HOME_DIR}/${DAEMON_SCRIPT_PREFIX}${WALLET_PREFIX}${INSTALL_SUFFIX}
+
+  # Create a small script that will be used to forward cmds to the wallet cli app to make it easier to interact with the wallet outside of the install script
+  {
+    echo "#!/bin/bash"
+    echo 'BINARY_PATH="'${HOME_DIR}/${DEFAULT_WALLET_DIR}${INSTALL_SUFFIX}/${WALLET_PREFIX}-cli -datadir=${USER_HOME_DIR}/${DEFAULT_DATA_DIR}${INSTALL_SUFFIX}'"'
+    echo '${BINARY_PATH} "$@"'
+  } > ${HOME_DIR}/${CLI_SCRIPT_PREFIX}${WALLET_PREFIX}${INSTALL_SUFFIX}
+
   # Get the shutdown service filename
   SHUTDOWN_SERVICE_FILE="$(get_shutdown_service_filename)"
 
@@ -1565,6 +1581,8 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
   chmod +x ${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli
   chmod +x ${HOME_DIR}/${WALLET_INSTALL_DIR}/${REBOOT_SCRIPT_NAME}
   chmod +x ${HOME_DIR}/${WALLET_INSTALL_DIR}/${SHUTDOWN_SCRIPT_NAME}
+  chmod +x ${HOME_DIR}/${DAEMON_SCRIPT_PREFIX}${WALLET_PREFIX}${INSTALL_SUFFIX}
+  chmod +x ${HOME_DIR}/${CLI_SCRIPT_PREFIX}${WALLET_PREFIX}${INSTALL_SUFFIX}
 
   if [ "$WALLET_BASE_DIR" = "${HOME_DIR}" ]; then
     # Save a copy of the downloaded wallet into the current install directory
@@ -1864,6 +1882,10 @@ else
   systemctl reset-failed
   # Remove old links to wallet binaries
   removeWalletLinks
+  # Remove the wallet daemon forwarding script
+  rm -f "${HOME_DIR}/${DAEMON_SCRIPT_PREFIX}${WALLET_PREFIX}${INSTALL_SUFFIX}"
+  # Remove the wallet cli forwarding script
+  rm -f "${HOME_DIR}/${CLI_SCRIPT_PREFIX}${WALLET_PREFIX}${INSTALL_SUFFIX}"
   # Remove the wallet and data directories
   rm -rf "${HOME_DIR}/${WALLET_INSTALL_DIR}"
   rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}"
