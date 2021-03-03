@@ -718,11 +718,13 @@ if [ -n "$UPDATE_INDEX" ] && [ ${UPDATE_INDEX} -ne 0 ]; then
   # Find the next installed wallet, starting from the update index
   i=${UPDATE_INDEX}; while [ $i -le 99 ]; do
     case $i in
-      1) DIR_TEST="${DEFAULT_WALLET_DIR}" ;;
-      *) DIR_TEST="${DEFAULT_WALLET_DIR}${i}" ;;
+      1) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}"
+         DATA_DIR_TEST="${DEFAULT_DATA_DIR}" ;;
+      *) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}${i}"
+         DATA_DIR_TEST="${DEFAULT_DATA_DIR}${i}" ;;
     esac
 
-    if [ -d "${HOME_DIR}/${DIR_TEST}" ]; then
+    if [ -d "${HOME_DIR}/${WALLET_DIR_TEST}" ] && [ -f "${USER_HOME_DIR}/${DATA_DIR_TEST}/${WALLET_CONFIG_NAME}" ]; then
       # Set the update index
       UPDATE_INDEX=${i}
       # Return from loop
@@ -1894,11 +1896,13 @@ else
   FULL_UNINSTALL=1
   i=1; while [ $i -le 99 ]; do
     case $i in
-      1) DIR_TEST="${DEFAULT_WALLET_DIR}" ;;
-      *) DIR_TEST="${DEFAULT_WALLET_DIR}${i}" ;;
+      1) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}"
+         DATA_DIR_TEST="${DEFAULT_DATA_DIR}" ;;
+      *) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}${i}"
+         DATA_DIR_TEST="${DEFAULT_DATA_DIR}${i}" ;;
     esac
 
-    if [ "${FULL_UNINSTALL}" -eq 1 ] && [ -d "${HOME_DIR}/${DIR_TEST}" ]; then
+    if [ "${FULL_UNINSTALL}" -eq 1 ] && [ -d "${HOME_DIR}/${WALLET_DIR_TEST}" ] && [ -f "${USER_HOME_DIR}/${DATA_DIR_TEST}/${WALLET_CONFIG_NAME}" ]; then
       # There is still an existing wallet
       FULL_UNINSTALL=0
     fi
@@ -1919,11 +1923,13 @@ if [ -n "$UPDATE_INDEX" ] && [ ${UPDATE_INDEX} -ne 0 ]; then
   # Check if there are any more wallets to update
   i=$(( UPDATE_INDEX + 1 )); while [ $i -le 99 ]; do
     case $i in
-      1) DIR_TEST="${DEFAULT_WALLET_DIR}" ;;
-      *) DIR_TEST="${DEFAULT_WALLET_DIR}${i}" ;;
+      1) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}"
+         DATA_DIR_TEST="${DEFAULT_DATA_DIR}" ;;
+      *) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}${i}"
+         DATA_DIR_TEST="${DEFAULT_DATA_DIR}${i}" ;;
     esac
 
-    if [ -d "${HOME_DIR}/${DIR_TEST}" ]; then
+    if [ -d "${HOME_DIR}/${WALLET_DIR_TEST}" ] && [ -f "${USER_HOME_DIR}/${DATA_DIR_TEST}/${WALLET_CONFIG_NAME}" ]; then
       # Set the update index
       UPDATE_INDEX=${i}
       # Return from loop
