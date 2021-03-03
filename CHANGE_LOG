@@ -1,3 +1,24 @@
+2.0.0 (March 3, 2021)
+-Replaced rc.local reboot script with crontab (this change opens up usage of the script on virtually any Ubuntu or Debian versions)
+-Installer now creates a shutdown service for each installed wallet that effectively waits for the wallet to close gracefully before completing the shutdown to help prevent blockchain corruption
+-Simplified the wallet daemon and cli commands (no longer need to specify -datadir for multi-wallet installs)
+-Network interface is now dynamically determined by finding the first available adapter that meets all requirements instead of trying a few hardcoded adapter names
+-Installing the firewall on systems that do not have SSH installed will no longer automatically try to add SSH firewall rules
+-Added a new cmd line option to send an rpc cmd to all wallets
+-Added a new cmd line argument to update all wallets
+-Added a new cmd line option for forcing the network interface to bind the node to
+-Added network interface to the install summary
+-Selected network interface is "remembered" for future updates
+-Added an additional wait for the node to connect to peers after the wallet is loaded
+-Firewall rules created for the wallet port during installation are now removed during uninstall
+-Better timing of previous data removal during an update install to help minimize problems that can occur when a masternode install is interrupted before it finishes
+-Better reusability of unregister IP address logic
+-Better testing for installed wallets
+-Reduce the need for checking install # so often
+-Fixed a bug which caused CURRENT_USER to not be set correctly to the logged in user on some systems
+-Fixed a rounding issue with the sync percentage value
+-Code cleanup: replaced tabs with spaces, remove unnecessary indentation, shorten install type case statement
+
 1.1.0 (November 18, 2020)
 -Added a new argument to stop all wallets
 -Added a new argument to skip o/s update/upgrade during install

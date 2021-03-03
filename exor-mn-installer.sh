@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# Version: v1.1.0
-# Date:    November 18, 2020
+# Version: v2.0.0
+# Date:    March 3, 2021
 #
 # Run this script with the desired parameters or leave blank to install using defaults. Use -h for help.
 #
@@ -13,7 +13,7 @@
 # A special thank you to @marsmensch for releasing the NODEMASTER script which helped immensely for integrating IPv6 support
 
 # Global Variables
-readonly SCRIPT_VERSION="1.1.0"
+readonly SCRIPT_VERSION="2.0.0"
 readonly WALLET_URL_TEMPLATE="https://github.com/team-exor/exor/releases/download/\${WALLET_VERSION}/"
 readonly SOURCE_URL="https://github.com/team-exor/exor.git"
 readonly SOURCE_DIR="exor"

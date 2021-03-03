@@ -1,6 +1,6 @@
 # Exor MN Installer
 
-### v1.1.0
+### v2.0.0
 
 A custom masternode install script made from scratch specifically for installing Exor masternodes.
 
