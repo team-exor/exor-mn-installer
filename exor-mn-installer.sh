@@ -150,6 +150,9 @@ help_menu() {
   echo "            apt-get update"
   echo "            apt-get upgrade"
   echo "            apt-get dist-upgrade"
+  echo "  -R, --rpcall"
+  echo "            send an RPC command to all wallets controlled by this script and"
+  echo "            display the results"
   echo "  -S, --stopall"
   echo "            shutdown all wallets controlled by this script and wait for all to"
   echo "            finish shutting down before continuing"
@@ -505,6 +508,44 @@ removeWalletLinks() {
   rm -f "${HOME_DIR}/${WALLET_PREFIX}-cli${INSTALL_SUFFIX}"
 }
 
+rpc_command() {
+  WALLET_CLOSED=0
+  # Check for installed wallets
+  i=1; while [ $i -le 99 ]; do
+    case $i in
+      1) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}"
+         DATA_DIR_TEST="${DEFAULT_DATA_DIR}" ;;
+      *) WALLET_DIR_TEST="${DEFAULT_WALLET_DIR}${i}"
+         DATA_DIR_TEST="${DEFAULT_DATA_DIR}${i}" ;;
+    esac
+
+    if [ -d "${HOME_DIR}/${WALLET_DIR_TEST}" ]; then
+      # Found an installed wallet
+      # Check if the wallet is currently running
+      if [ -f "${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then
+        # Wallet is running
+        # Add space if a wallet was already closed
+        if [ $WALLET_CLOSED -eq 0 ]; then
+          echo
+        fi
+        # Display info msg
+        echo "${CYAN}#####${NONE} Wallet #${i} Response: ${CYAN}#####${NONE}" && echo
+        # Issue rpc command
+        ${HOME_DIR}/${WALLET_DIR_TEST}/${WALLET_PREFIX}-cli -datadir=${USER_HOME_DIR}/${DATA_DIR_TEST} ${1}
+        # Keep track of wallet being closed
+        echo && WALLET_CLOSED=1
+      fi
+    fi
+
+    i=$(( i + 1 ))
+  done
+
+  # Check if any wallets were closed
+  if [ $WALLET_CLOSED -eq 0 ]; then
+    echo && echo "${GREEN}#####${NONE} No wallets are currently running ${GREEN}#####${NONE}" && echo
+  fi
+}
+
 stop_all() {
   WALLET_CLOSED=0
   # Check for installed wallets
@@ -583,7 +624,7 @@ if [ -z "${CURRENT_USER}" ]; then
 fi
 
 # Read command line arguments
-if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:a:sfbcuSU" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,adapter:,noswap,nofirewall,nobruteprotect,nochainsync,noosupgrade,stopall,updateall" -n "${0##*/}" -- "$@"); then
+if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:a:R:sfbcuSU" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,adapter:,rpcall:,noswap,nofirewall,nobruteprotect,nochainsync,noosupgrade,stopall,updateall" -n "${0##*/}" -- "$@"); then
   # invalid command line arguments so show help menu
   help_menu
   exit;
@@ -673,6 +714,13 @@ while true; do
     -u|--noosupgrade)
       shift;
       OSUPGRADE="0";
+      ;;
+    -R|--rpcall)
+      shift;
+      if [ -n "$1" ]; then
+        rpc_command "$1"
+        exit
+      fi
       ;;
     -S|--stopall)
       shift;

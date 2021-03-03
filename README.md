@@ -182,6 +182,11 @@ To update all installed wallets with a single command, use the following:
      ```
      
      Usage Example: `sudo sh exor-mn-installer.sh -u`
+- -R or --rpcall
+
+     Send an RPC command to all wallets controlled by this script and display the results
+     
+     Usage Example: `sudo sh exor-mn-installer.sh -R getblockcount`
 - -S or --stopall
 
      Shutdown all wallets controlled by this script and wait for all to finish shutting down before continuing
@@ -301,8 +306,36 @@ cexor5 getmasternodestatus
 
 #### Shut down all running wallets:
 
+**NOTE:** The following command will shut down masternode wallets one at a time and wait for each to completely close before proceeding to the next:
+
 ```
 sudo sh exor-mn-installer.sh -S
+```
+
+#### Send an rpc command to all wallets simultaneously:
+
+View the current block for all wallets:
+
+```
+sudo sh exor-mn-installer.sh -R getblockcount
+```
+
+Check masternode status for all wallets:
+
+```
+sudo sh exor-mn-installer.sh -R getmasternodestatus
+```
+
+Stop all wallets:
+
+```
+sudo sh exor-mn-installer.sh -R stop
+```
+
+Commands with spaces can also be used by surrounding the full command in double-quotes:
+
+```
+sudo sh exor-mn-installer.sh -R "masternode status"
 ```
 
 #### Sample cron job to shut down all running wallets and reboot once a month:
