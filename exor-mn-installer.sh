@@ -1827,11 +1827,11 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
   echo "${ORANGE}===================================================================${NONE}"
   # masternode.conf file setup
   echo && echo "${PURPLE}#####${NONE} masternode.conf file setup ${PURPLE}#####${NONE}" && echo
-  echo "Add the following line to the bottom of your masternode.conf file in your cold wallet (Tools > Open Masternode Configuration File):" && echo
+  echo "Add the following line to the bottom of your masternode.conf file in your controller wallet (Tools > Open Masternode Configuration File):" && echo
   echo "${CYAN}<alias>${NONE} ${CONFIG_ADDRESS} ${NULLGENKEY} ${CYAN}<txhash>${NONE} ${CYAN}<outputidx>${NONE}"
 
   echo && echo "${ORANGE}NOTE: You must make the following replacements:${NONE}"
-  echo "Replace ${CYAN}<alias>${NONE} with the alias from step 1 on the cold wallet setup (getaccountaddress <alias>)"
+  echo "Replace ${CYAN}<alias>${NONE} with the alias from step 1 on the controller wallet setup (getaccountaddress <alias>)"
   echo "Replace ${CYAN}<txhash>${NONE} with the proper value from 'getmasternodeoutputs'"
   echo "Replace ${CYAN}<outputidx>${NONE} with the proper value from 'getmasternodeoutputs'"
   # Output the list of useful commands for the newly installed wallet
@@ -1839,16 +1839,16 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 
   if [ "$INSTALL_NUM" -eq 1 ]; then
     echo "${CYAN}Uninstall wallet:${NONE} sudo sh ${0##*/} -t u"
-    echo "${CYAN}Manually stop wallet:${NONE} ${WALLET_PREFIX}-cli stop"
-    echo "${CYAN}Manually start wallet:${NONE} ${WALLET_PREFIX}d"
-    echo "${CYAN}View wallets current block:${NONE} ${WALLET_PREFIX}-cli getblockcount"
-    echo "${CYAN}Masternode status check:${NONE} ${WALLET_PREFIX}-cli getmasternodestatus"
+    echo "${CYAN}Manually stop wallet:${NONE} c${WALLET_PREFIX} stop"
+    echo "${CYAN}Manually start wallet:${NONE} d${WALLET_PREFIX}"
+    echo "${CYAN}View wallets current block:${NONE} c${WALLET_PREFIX} getblockcount"
+    echo "${CYAN}Masternode status check:${NONE} c${WALLET_PREFIX} getmasternodestatus"
   else
     echo "${CYAN}Uninstall wallet:${NONE} sudo sh ${0##*/} -t u -n $INSTALL_NUM"
-    echo "${CYAN}Manually stop wallet:${NONE} ${WALLET_PREFIX}-cli${INSTALL_NUM} -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR} stop"
-    echo "${CYAN}Manually start wallet:${NONE} ${WALLET_PREFIX}d${INSTALL_NUM} -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR}"
-    echo "${CYAN}View wallets current block:${NONE} ${WALLET_PREFIX}-cli${INSTALL_NUM} -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR} getblockcount"
-    echo "${CYAN}Masternode status check:${NONE} ${WALLET_PREFIX}-cli${INSTALL_NUM} -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR} getmasternodestatus"
+    echo "${CYAN}Manually stop wallet:${NONE} c${WALLET_PREFIX}${INSTALL_NUM} stop"
+    echo "${CYAN}Manually start wallet:${NONE} d${WALLET_PREFIX}${INSTALL_NUM}"
+    echo "${CYAN}View wallets current block:${NONE} c${WALLET_PREFIX}${INSTALL_NUM} getblockcount"
+    echo "${CYAN}Masternode status check:${NONE} c${WALLET_PREFIX}${INSTALL_NUM} getmasternodestatus"
   fi
 
   echo && echo "${ORANGE}===================================================================${NONE}"
