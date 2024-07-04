@@ -34,6 +34,7 @@ readonly WALLET_PREFIX="exor"
 readonly PEER_DATA_CMD="getconnectioncount"
 readonly BLOCKCOUNT_URL="https://explorer.exor.io/api/getblockcount"
 readonly RELEASES_URL="https://api.github.com/repos/team-exor/exor/releases"
+readonly SNAPSHOT_URL="https://explorer.exor.io/ext/getnewestsnapshot/tgz/url"
 readonly NONE="\033[00m"
 readonly ORANGE="\033[00;33m"
 readonly RED="\033[01;31m"
@@ -226,6 +227,20 @@ validate_install_num() {
   fi
 }
 
+is_url() {
+  # Regex pattern to match a valid URL
+  url_regex="^(https?|ftp):\/\/[^\s/$.?#].[^\s]*$"
+
+  # Check if the argument matches the URL pattern
+  if echo "$1" | grep -qE "$url_regex"; then
+    # Argument is a valid URL
+    return "0"
+  else
+    # Argument is not a valid URL
+    return "1"
+  fi
+}
+
 check_stop_wallet() {
   # Check if the wallet is currently running
   if [ -f "${HOME_DIR}/${1}/${WALLET_PREFIX}d" ] && [ -n "$(lsof "${HOME_DIR}/${1}/${WALLET_PREFIX}d" 2> /dev/null)" ]; then
@@ -356,6 +371,17 @@ install_package() {
 extract_wallet_files() {
   echo "${CYAN}#####${NONE} Extract wallet files ${CYAN}#####${NONE}" && echo
   tar -zxvf "${WALLET_BASE_DIR}/${WALLET_FILE}" -C "${USER_HOME_DIR}" && echo
+}
+
+extract_snapshot_files() {
+  echo "${CYAN}#####${NONE} Extract snapshot files ${CYAN}#####${NONE}" && echo
+  execute_command "tar -zxvf ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/snapshot.tgz -C ${USER_HOME_DIR}/${DATA_INSTALL_DIR}" && echo
+}
+
+delete_blockchain() {
+  # Delete the necessary files from the current data directory
+  rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/blocks"
+  rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/chainstate"
 }
 
 write_config() {
@@ -1672,6 +1698,9 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
     write_config
   fi
 
+  # Add a variable to determine if the blockchain was copied from another wallet install
+  BLOCKCHAIN_COPIED=0
+
   # Check if another wallets blockchain should be copied to this installation
   if [ "$COPY_BLOCKCHAIN" -eq 1 ]; then
     # Determine if there is another install that can be copied over to save time on re-syncing the blockchain
@@ -1686,8 +1715,7 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
       if [ -d "${USER_HOME_DIR}/${DATA_DIR_TEST}" ] && [ "${DATA_DIR_TEST}" != "${DATA_INSTALL_DIR}" ]; then
         # Found another data directory
         # Delete the necessary files from the current data directory
-        rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/blocks"
-        rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/chainstate"
+        delete_blockchain
         NEED_RESTART=0
 
         # Check if the other wallet is currently running and stop it if running
@@ -1704,6 +1732,9 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
         execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/chainstate ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/chainstate"
         execute_command "sync && wait"
 
+        # Indicate that the blockchain was copied from another wallet install
+        BLOCKCHAIN_COPIED=1
+
         # Check if other wallet needs to be restarted
         if [ $NEED_RESTART -eq 1 ]; then
           # Restart other wallet
@@ -1717,6 +1748,64 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 
       i=$(( i + 1 ))
     done
+  fi
+
+  # Check if this is a new install and the blockchain could not be copied from another wallet install and the snapshot url is set
+  if [ "$COPY_BLOCKCHAIN" -eq 1 ] && [ "$BLOCKCHAIN_COPIED" -eq 0 ] && [ -n "${SNAPSHOT_URL}" ]; then
+    # Download snapshot
+    echo && echo "${CYAN}#####${NONE} Download snapshot ${CYAN}#####${NONE}" && echo
+    wget -q "${SNAPSHOT_URL}" -O "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/snapshot.tgz" -P "${USER_HOME_DIR}/${DATA_INSTALL_DIR}" --show-progress
+    SNAPSHOT_OK=0
+
+    # Check if the snapshot downloaded successfully
+    if [ ! -f "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/snapshot.tgz" ] || [ $(stat -c%s "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/snapshot.tgz") -eq 0 ]; then
+      # Something went wrong because the file does not exist
+      echo "Failed to download snapshot"
+    else
+      # Check if the snapshot file is larger than 1 MB (1048576 bytes)
+      if [ $(stat -c%s "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/snapshot.tgz") -gt 1048576 ]; then
+        # Indicate that the snapshot seems OK to extract
+        SNAPSHOT_OK=1
+      else
+        # Snapshot file is less than 1 MB
+        # Read contents of the file into a variable
+        SNAPSHOT_CONTENTS=$(cat "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/snapshot.tgz")
+
+        # Check if the contents of the file is another url
+        if [ "$(is_url ${SNAPSHOT_CONTENTS})" = "0" ]; then
+          # Something went wrong because the file does not contain a url
+          echo "Failed to download snapshot"
+        else
+          # Download snapshot again using the new url
+          wget -q "${SNAPSHOT_CONTENTS}" -O "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/snapshot.tgz" -P "${USER_HOME_DIR}/${DATA_INSTALL_DIR}" --show-progress
+
+          # Check if the snapshot downloaded successfully and is larger than 1 MB
+          if [ -f "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/snapshot.tgz" ] && [ $(stat -c%s "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/snapshot.tgz") -gt 1048576 ]; then
+            # Indicate that the snapshot seems OK to extract
+            SNAPSHOT_OK=1
+          else
+            # Something went wrong because the file is still less than 1 MB
+            echo "Failed to download snapshot"
+          fi
+        fi
+      fi
+    fi
+    echo
+
+    # Check if it is OK to extract the snapshot
+    if [ "$SNAPSHOT_OK" -eq 1 ]; then
+      # Delete existing blockchain files
+      delete_blockchain
+
+      # Extract snapshot files from downloaded archive
+      extract_snapshot_files
+    fi
+
+    # Check if the snapshot file exists
+    if [ -f "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/snapshot.tgz" ]; then
+      # Delete the snapshot file
+      rm -f "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/snapshot.tgz"
+    fi
   fi
 
   # Wallet setup complete

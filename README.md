@@ -28,6 +28,7 @@ To save time on 2+ installs, the wallet binaries are archived in the wallet dire
 - Script update feature ensures you are always installing using the most up-to-date script
 - Wallet update feature ensures you do not have to wait for an updated script to be released to install the latest wallet version
 - Install wallet from compiled binary files or build from source code
+- 1st wallet install can download and utilize the most recent blockchain snapshot to cut down on initial sync times
 - Faster syncing times for 2+ installs by copying previously installed blockchain files over to new installs
 - Automatic restart of installed masternodes after reboot
 - Stop all masternodes automatically when a reboot or shutdown command is issued to help prevent blockchain corruption
