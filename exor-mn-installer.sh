@@ -53,6 +53,26 @@ readonly CLI_SCRIPT_PREFIX="c"
 readonly VERSION_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/VERSION"
 readonly SCRIPT_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/exor-mn-installer.sh"
 readonly NEW_CHANGES_URL="https://raw.githubusercontent.com/team-exor/exor-mn-installer/master/NEW_CHANGES"
+readonly COPY_FILE1="blocks"
+readonly COPY_FILE2="chainstate"
+readonly COPY_FILE3="sporks"
+readonly COPY_FILE4="zerocoin"
+readonly COPY_FILE5=""
+readonly COPY_FILE6=""
+readonly COPY_FILE7=""
+readonly COPY_FILE8=""
+readonly COPY_FILE9=""
+readonly COPY_FILE10=""
+readonly DELETE_FILE1="blocks"
+readonly DELETE_FILE2="chainstate"
+readonly DELETE_FILE3="sporks"
+readonly DELETE_FILE4="zerocoin"
+readonly DELETE_FILE5="banlist.dat"
+readonly DELETE_FILE6=""
+readonly DELETE_FILE7=""
+readonly DELETE_FILE8=""
+readonly DELETE_FILE9=""
+readonly DELETE_FILE10=""
 readonly WELCOME_MSG="                   ${ORANGE}.:+ssssssssss+:.\n                :oys+${GREY}oosyhhhhys++${ORANGE}/oyo:\n              /hs+${GREY}odNMMMMMMMMMMMMNh+${ORANGE}/oh/\n            :hs/${GREY}hMMMMMMMMMMMMMMMMMMMMy${ORANGE}:oh:\n           oh+${GREY}sMMMMMmmNNNNNNNNNNNMMMMMMo${ORANGE}/ho\n          oh/${GREY}hMMMMMMh${ORANGE}\\-\`\`-ossss+o${GREY}MMMMMMMh${ORANGE}/do\n         -d+${GREY}sMMMMMMMMM${ORANGE}y\`\`+${GREY}MMMMMN${ORANGE}s${GREY}MMMMMMMMy${ORANGE}od-\n         yy:${GREY}MMMMMMMMMM${ORANGE}y\`\`+${GREY}MMMM${ORANGE}h${GREY}mMMMMMMMMMM${ORANGE}/hy\n         dy+${GREY}MMMMMMMMMM${ORANGE}y\`\`.+o+:o${GREY}dMMMMMMMMMM${ORANGE}ohd\n         dy+${GREY}MMMMMMMMMM${ORANGE}y.\`/${GREY}MMMm${ORANGE}y${GREY}hMMMMMMMMMM${ORANGE}ohd\n         yh:${GREY}NMMMMMMMMM${ORANGE}y..+${GREY}MMMMNNMMMMMMMMMM${ORANGE}/hy\n         -do${GREY}sMMMMMMMMM${ORANGE}y..+${GREY}MMMMMN${ORANGE}s:${GREY}NMMMMMMs${ORANGE}od-\n          oh/${GREY}yMMMMMMMh${ORANGE}/-.-+++/-./${GREY}mMMMMMMy${ORANGE}/do\n           oh+${GREY}oNMMMMMMMMMMMMMNNMMMMMMMN+${ORANGE}/do\n            :hs${GREY}+yNMMMMMMMMMMMMMMMMMMNs:${ORANGE}sh:\n              +hs${GREY}+ohNMMMMMMMMMMMMNy+/${ORANGE}sh+\n                :ohy${GREY}++oosyyyyso++/${ORANGE}sho:\n                   ./+syyyyyyyys+/.${NONE}"
 WALLET_VERSION="1.0.0"
 
@@ -380,8 +400,45 @@ extract_snapshot_files() {
 
 delete_blockchain() {
   # Delete the necessary files from the current data directory
-  rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/blocks"
-  rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/chainstate"
+  if [ -n "${DELETE_FILE1}" ]; then
+    rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${DELETE_FILE1}"
+  fi
+
+  if [ -n "${DELETE_FILE2}" ]; then
+    rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${DELETE_FILE2}"
+  fi
+
+  if [ -n "${DELETE_FILE3}" ]; then
+    rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${DELETE_FILE3}"
+  fi
+
+  if [ -n "${DELETE_FILE4}" ]; then
+    rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${DELETE_FILE4}"
+  fi
+
+  if [ -n "${DELETE_FILE5}" ]; then
+    rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${DELETE_FILE5}"
+  fi
+
+  if [ -n "${DELETE_FILE6}" ]; then
+    rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${DELETE_FILE6}"
+  fi
+
+  if [ -n "${DELETE_FILE7}" ]; then
+    rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${DELETE_FILE7}"
+  fi
+
+  if [ -n "${DELETE_FILE8}" ]; then
+    rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${DELETE_FILE8}"
+  fi
+
+  if [ -n "${DELETE_FILE9}" ]; then
+    rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${DELETE_FILE9}"
+  fi
+
+  if [ -n "${DELETE_FILE10}" ]; then
+    rm -rf "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${DELETE_FILE10}"
+  fi
 }
 
 write_config() {
@@ -1728,8 +1785,47 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 
         # Copy blockchain files from the other data directory
         echo "Copy blockchain from wallet #${i}"
-        execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/blocks ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/blocks"
-        execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/chainstate ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/chainstate"
+
+        if [ -n "${COPY_FILE1}" ]; then
+          execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/${COPY_FILE1} ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${COPY_FILE1}"
+        fi
+
+        if [ -n "${COPY_FILE2}" ]; then
+          execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/${COPY_FILE2} ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${COPY_FILE2}"
+        fi
+
+        if [ -n "${COPY_FILE3}" ]; then
+          execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/${COPY_FILE3} ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${COPY_FILE3}"
+        fi
+
+        if [ -n "${COPY_FILE4}" ]; then
+          execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/${COPY_FILE4} ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${COPY_FILE4}"
+        fi
+
+        if [ -n "${COPY_FILE5}" ]; then
+          execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/${COPY_FILE5} ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${COPY_FILE5}"
+        fi
+
+        if [ -n "${COPY_FILE6}" ]; then
+          execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/${COPY_FILE6} ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${COPY_FILE6}"
+        fi
+
+        if [ -n "${COPY_FILE7}" ]; then
+          execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/${COPY_FILE7} ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${COPY_FILE7}"
+        fi
+
+        if [ -n "${COPY_FILE8}" ]; then
+          execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/${COPY_FILE8} ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${COPY_FILE8}"
+        fi
+
+        if [ -n "${COPY_FILE9}" ]; then
+          execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/${COPY_FILE9} ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${COPY_FILE9}"
+        fi
+
+        if [ -n "${COPY_FILE10}" ]; then
+          execute_command "cp -rf ${USER_HOME_DIR}/${DATA_DIR_TEST}/${COPY_FILE10} ${USER_HOME_DIR}/${DATA_INSTALL_DIR}/${COPY_FILE10}"
+        fi
+
         execute_command "sync && wait"
 
         # Indicate that the blockchain was copied from another wallet install
