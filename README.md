@@ -183,6 +183,11 @@ To update all installed wallets with a single command, use the following:
      ```
      
      Usage Example: `sudo sh exor-mn-installer.sh -u`
+- -r or --reindex
+
+     Purge the blockchain data files for the current wallet install. Use this option to get back on the main blockchain when a wallet becomes corrupt or forked. Only applicable to update installs. 3 valid options: r = reinstall from scratch, c = copy blockchain from another wallet, s = install from latest snapshot
+     
+     Usage Example: `sudo sh exor-mn-installer.sh -r c`
 - -R or --rpcall
 
      Send an RPC command to all wallets controlled by this script and display the results

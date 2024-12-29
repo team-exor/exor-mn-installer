@@ -9,7 +9,7 @@
 # Please report other working instances to:
 #       Telegram: @joeuhren on https://t.me/ExorOfficialSupport
 #       or
-#       Discord: @Joe [Team Exor]#5573 on https://discord.gg/dSuGm3y
+#       Discord: @joeteamexor on https://discord.gg/dSuGm3y
 # A special thank you to @marsmensch for releasing the NODEMASTER script which helped immensely for integrating IPv6 support
 
 # Global Variables
@@ -87,6 +87,7 @@ FIREWALL=1
 FAIL2BAN=1
 SYNCCHAIN=1
 OSUPGRADE=1
+REINDEX=""
 WAIT_TIMEOUT=5
 DATA_INSTALL_DIR=""
 WALLET_INSTALL_DIR=""
@@ -171,6 +172,14 @@ help_menu() {
   echo "            apt-get update"
   echo "            apt-get upgrade"
   echo "            apt-get dist-upgrade"
+  echo "  -r, --reindex"
+  echo "            purge the blockchain data files for the current wallet install"
+  echo "            use this option to get back on the main blockchain when a wallet"
+  echo "            becomes corrupt or forked"
+  echo "            only applicable to update installs"
+  echo "            3 valid options: r = reinstall from scratch (default)"
+  echo "                             c = copy blockchain from another wallet"
+  echo "                             s = install from latest snapshot"
   echo "  -R, --rpcall"
   echo "            send an RPC command to all wallets controlled by this script and"
   echo "            display the results"
@@ -707,7 +716,7 @@ if [ -z "${CURRENT_USER}" ]; then
 fi
 
 # Read command line arguments
-if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:a:R:sfbcuSU" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,adapter:,rpcall:,noswap,nofirewall,nobruteprotect,nochainsync,noosupgrade,stopall,updateall" -n "${0##*/}" -- "$@"); then
+if ! ARGS=$(getopt -o "ht:w:g:N:i:p:n:a:r:R:sfbcuSU" -l "help,type:,wallet:,genkey:,net:,ip:,port:,number:,adapter:,reindex:,rpcall:,noswap,nofirewall,nobruteprotect,nochainsync,noosupgrade,stopall,updateall" -n "${0##*/}" -- "$@"); then
   # invalid command line arguments so show help menu
   help_menu
   exit;
@@ -797,6 +806,15 @@ while true; do
     -u|--noosupgrade)
       shift;
       OSUPGRADE="0";
+      ;;
+    -r|--reindex)
+      shift;
+      if [ -n "$1" ]; then
+        REINDEX="$1";
+      else
+        REINDEX="r";
+      fi
+      shift;
       ;;
     -R|--rpcall)
       shift;
@@ -1007,6 +1025,10 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
 
   if [ -n "$NULLGENKEY" ] && [ -n "$(validate_genkey $NULLGENKEY)" ]; then
     echo && error_message "Invalid masternode genkey value"
+  fi
+
+  if [ -n "${REINDEX}" ] && [ "${REINDEX}" != "r" ] && [ "${REINDEX}" != "c" ] && [ "${REINDEX}" != "s" ]; then
+    echo && error_message "Invalid reindex value"
   fi
 
   if [ "$NET_TYPE" -eq 6 ]; then
@@ -1732,6 +1754,10 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
       # Manually create the data directory
       execute_command "mkdir ${USER_HOME_DIR}/${DATA_INSTALL_DIR}"
     fi
+
+    # Attempt to copy the blockchain from another installed wallet near the end of the install
+    COPY_BLOCKCHAIN=1
+  elif [ "$REINDEX" = "c" ]; then
     # Attempt to copy the blockchain from another installed wallet near the end of the install
     COPY_BLOCKCHAIN=1
   fi
@@ -1739,18 +1765,29 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
   # Overwrite configuration file settings
   write_config
 
+  # Check if a reindex should be done
+  if [ -n "${REINDEX}" ]; then
+    # Delete existing blockchain files
+    delete_blockchain
+  fi
+
   # If there is no genkey value then generate it from the current wallet
   if [ -z "$NULLGENKEY" ]; then
-    # Start wallet
     echo "Temporarily starting new wallet"
+
+    # Start wallet
     execute_command "${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}d -datadir=${USER_HOME_DIR}/${DATA_INSTALL_DIR}"
+
     # Wait for wallet to load
     wait_wallet_loaded
+
     # Get the genkey value
     NULLGENKEY=$("${HOME_DIR}/${WALLET_INSTALL_DIR}/${WALLET_PREFIX}-cli" -datadir="${USER_HOME_DIR}/${DATA_INSTALL_DIR}" masternode genkey) >/dev/null 2>&1
     echo && printf "Generated new genkey value: ${NULLGENKEY}"
+
     # Stop the wallet
     echo && check_stop_wallet "${WALLET_INSTALL_DIR}" "${DATA_INSTALL_DIR}"
+
     # Overwrite configuration file settings (now with the proper genkey value)
     write_config
   fi
@@ -1846,8 +1883,8 @@ if [ "$INSTALL_TYPE" = "Install" ]; then
     done
   fi
 
-  # Check if this is a new install and the blockchain could not be copied from another wallet install and the snapshot url is set
-  if [ "$COPY_BLOCKCHAIN" -eq 1 ] && [ "$BLOCKCHAIN_COPIED" -eq 0 ] && [ -n "${SNAPSHOT_URL}" ]; then
+  # Check if the blockchain could not be copied from another wallet install and the snapshot url is set or this is a snapshot reindex
+  if ([ "$COPY_BLOCKCHAIN" -eq 1 ] && [ "$BLOCKCHAIN_COPIED" -eq 0 ] && [ -n "${SNAPSHOT_URL}" ] || [ "$REINDEX" = "s" ]); then
     # Download snapshot
     echo && echo "${CYAN}#####${NONE} Download snapshot ${CYAN}#####${NONE}" && echo
     wget -q "${SNAPSHOT_URL}" -O "${USER_HOME_DIR}/${DATA_INSTALL_DIR}/snapshot.tgz" -P "${USER_HOME_DIR}/${DATA_INSTALL_DIR}" --show-progress
